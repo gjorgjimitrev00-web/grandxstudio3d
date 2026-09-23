@@ -1,0 +1,2 @@
+# Prisma emits a final empty line in generated SQL migrations. Preserve applied checksums.
+prisma/migrations/**/*.sql whitespace=-blank-at-eof

@@ -1,0 +1,24 @@
+name: Verify application
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: mysql://ci:unused@127.0.0.1:3306/build_only
+      NEXT_PUBLIC_SITE_URL: https://example.test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high

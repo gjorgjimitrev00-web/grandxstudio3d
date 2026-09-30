@@ -10,6 +10,7 @@ export const defaults: Record<string, string> = {
   facebook: '',
   tiktok: '',
   currency: 'MKD',
+  chatEnabled: 'true',
   logo: '',
   about:
     'GrandXStudio е студио за 3D печатење во Северна Македонија. Создаваме функционални додатоци, оригинални дизајни и персонализирани предмети — слој по слој, со внимание кон секој детал.',

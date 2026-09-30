@@ -57,6 +57,7 @@ model User {
   role         Role      @default(CUSTOMER)
   sessions     Session[]
   customer     Customer?
+  chatPresence ChatPresence?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
@@ -403,4 +404,57 @@ model RateLimit {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+enum ChatSender {
+  VISITOR
+  ADMIN
+}
+
+enum ChatStatus {
+  OPEN
+  CLOSED
+}
+
+model ChatConversation {
+  id                   String        @id @default(cuid())
+  visitorTokenHash     String        @unique @db.Char(64)
+  name                 String        @db.VarChar(100)
+  email                String        @db.VarChar(191)
+  status               ChatStatus    @default(OPEN)
+  preview              String        @db.VarChar(200)
+  lastVisitorMessageId  Int           @default(0)
+  lastAdminMessageId    Int           @default(0)
+  adminReadThrough     Int           @default(0)
+  visitorReadThrough   Int           @default(0)
+  messageCount         Int           @default(0)
+  expiresAt            DateTime
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  lastMessageAt        DateTime      @default(now())
+  messages             ChatMessage[]
+
+  @@index([status, lastMessageAt])
+  @@index([expiresAt])
+}
+
+model ChatMessage {
+  id             Int              @id @default(autoincrement())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         ChatSender
+  text           String           @db.Text
+  clientId       String           @db.Char(36)
+  createdAt      DateTime         @default(now())
+
+  @@unique([conversationId, clientId])
+  @@index([conversationId, id])
+}
+
+model ChatPresence {
+  userId     String   @id
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSeenAt DateTime @default(now())
+
+  @@index([lastSeenAt])
 }

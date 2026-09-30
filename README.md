@@ -74,6 +74,27 @@ The precise hPanel labels and build/runtime network access can vary. Hostinger's
 
 Hostinger documents backend build files outside public_html, but this project does **not** infer a guarantee that arbitrary Node runtime files survive deployment. Independent PHP-site storage is the chosen separation; its behavior still needs verification on your actual account.
 
+## Live chat
+
+Customers can use the floating chat button on any storefront page, in Macedonian or English. They enter a name, email and message without creating an account. Conversations and replies are stored in MySQL; no external chat subscription, payment provider or additional environment variables are required.
+
+- Open **Admin → Live chat** (`/admin/chat`) to read and reply. Keep that browser tab visible with **You’re available** checked to appear online. New messages refresh automatically within a few seconds. When the tab is hidden or closed, visitors can still leave messages. A stale presence expires within 75 seconds if the browser disconnects unexpectedly.
+- Select a conversation to mark incoming messages as read. Use **Resolve** when finished; a new message reopens it. Filter open, resolved or all conversations. **Enable storefront chat** controls the customer widget; disabling it takes effect on the next page load and also blocks new customer messages immediately.
+- Replies appear in the website chat. There are **no email, SMS, push or background desktop notifications**. The entered email is available to staff if a separate follow-up is needed. Customers must return in the same browser to retrieve their replies. Clearing cookies or using another browser loses access.
+- Private guest access uses a random, HTTP-only, SameSite=Strict cookie scoped to `/api/chat`, with Secure enabled in production. Only its hash is stored. Conversations expire 30 days after creation; `npm run maintenance` deletes expired conversations and their messages. Run maintenance regularly in a trusted environment connected to MySQL; deployment does not schedule it automatically. Include chat/contact-data handling in your store’s editable privacy policy.
+- Deploy with the existing **`npm run deploy:build`** command. It applies `202609300001_live_chat`, creating the chat tables without changing customer accounts or orders. Back up MySQL before deployment. Afterward, sign in at `/admin/chat`, open the storefront in a second browser, send a test message, reply from admin and confirm delivery. The transport uses short polling suitable for the existing managed Node hosting.
+
+### Chat verification
+
+With an isolated local app and disposable MySQL database, set `DATABASE_URL` and `TEST_BASE_URL` for both the app and test runner, then run:
+
+```sh
+node --import tsx --test tests/integration/chat.test.ts
+node --import tsx tests/chat-browser.ts
+```
+
+The chat suite covers private visitor sessions, admin authorization, cross-origin rejection, concurrent retries, read markers, message pagination, online expiry, disabled chat and conversation expiry. Browser checks exercise a customer/admin exchange and responsive layouts.
+
 ## Testing
 
 ```sh

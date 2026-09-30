@@ -3,6 +3,7 @@ import { Header, Logo } from '@/components/header';
 import { CartProvider } from '@/components/cart-context';
 import { getCopy, getLocale } from '@/lib/i18n';
 import { getSettings } from '@/lib/settings';
+import { LiveChat } from '@/components/live-chat';
 export const dynamic = 'force-dynamic';
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const [copy, locale, s] = await Promise.all([getCopy(), getLocale(), getSettings()]);
@@ -65,6 +66,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
           </div>
         </div>
       </footer>
+      {s.chatEnabled !== 'false' && <LiveChat locale={locale} />}
     </CartProvider>
   );
 }

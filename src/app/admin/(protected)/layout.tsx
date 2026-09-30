@@ -9,6 +9,7 @@ import {
   Layers3,
   Settings,
   Mail,
+  MessageCircle,
   Send,
   ArrowUpRight,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ['/admin/customers', 'Customers', Users],
     ['/admin/custom-orders', 'Custom prints', Layers3],
     ['/admin/messages', 'Messages', Mail],
+    ['/admin/chat', 'Live chat', MessageCircle],
     ['/admin/newsletter', 'Newsletter', Send],
     ['/admin/settings', 'Settings', Settings],
   ] as const;

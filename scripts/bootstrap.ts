@@ -6,8 +6,14 @@ const db = new PrismaClient();
 async function main() {
   const address = process.env.BOOTSTRAP_ADMIN_EMAIL;
   const pass = process.env.BOOTSTRAP_ADMIN_PASSWORD;
-  if (!address && !pass) return;
-  if (!address || !pass) throw Error('Both bootstrap variables are required.');
+  if (!address && !pass) {
+    console.log(
+      'Admin bootstrap skipped: BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD are missing or empty in the build environment. Set both and redeploy to create the first administrator.',
+    );
+    return;
+  }
+  if (!address) throw Error('Admin bootstrap failed: BOOTSTRAP_ADMIN_EMAIL is missing or empty.');
+  if (!pass) throw Error('Admin bootstrap failed: BOOTSTRAP_ADMIN_PASSWORD is missing or empty.');
   email.parse(address);
   password.parse(pass);
   if (await db.user.count({ where: { role: 'ADMIN' } })) {

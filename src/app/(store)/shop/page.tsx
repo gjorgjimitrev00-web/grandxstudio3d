@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { getCopy } from '@/lib/i18n';
 import { ProductCard } from '@/components/product-card';
+import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 export async function generateMetadata({
   searchParams,
 }: {
@@ -96,60 +97,75 @@ export default async function Shop({
       </div>
       <div className="section-heading">
         <div>
-          <p className="eyebrow orange">THE GRANDXSTUDIO COLLECTION</p>
+          <p className="eyebrow">{copy.collection}</p>
           <h1 className="page-title">{selected?.name || copy.shop}</h1>
           <p className="muted">{copy.featuredSub}</p>
         </div>
         <span className="small muted">
-          {count} {copy.all.toLowerCase()}
+          {count} {copy.productsLabel}
         </span>
       </div>
       <form className="shop-filters">
-        <label>
-          {copy.search}
-          <input name="q" defaultValue={q} placeholder={copy.search} />
-        </label>
-        <label>
-          {copy.categories}
-          <select name="category" defaultValue={p.category || ''}>
-            <option value="">{copy.all}</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.slug}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Min. MKD
-          <input name="min" type="number" min="0" defaultValue={p.min} />
-        </label>
-        <label>
-          Max. MKD
-          <input name="max" type="number" min="0" defaultValue={p.max} />
-        </label>
-        <label>
-          {copy.sort}
-          <select name="sort" defaultValue={p.sort || 'newest'}>
-            <option value="newest">{copy.newest}</option>
-            <option value="price-asc">{copy.lowPrice}</option>
-            <option value="price-desc">{copy.highPrice}</option>
-            <option value="popular">{copy.popular}</option>
-          </select>
-        </label>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            name="stock"
-            value="available"
-            defaultChecked={p.stock === 'available'}
-          />
-          {copy.inStock}
-        </label>
-        <button className="button">{copy.apply}</button>
-        <Link href="/shop" className="text-link">
-          {copy.reset}
-        </Link>
+        <div className="filter-main">
+          <label>
+            {copy.search}
+            <input name="q" defaultValue={q} placeholder={copy.search} />
+          </label>
+          <label>
+            {copy.categories}
+            <select name="category" defaultValue={p.category || ''}>
+              <option value="">{copy.all}</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.slug}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {copy.sort}
+            <select name="sort" defaultValue={p.sort || 'newest'}>
+              <option value="newest">{copy.newest}</option>
+              <option value="price-asc">{copy.lowPrice}</option>
+              <option value="price-desc">{copy.highPrice}</option>
+              <option value="popular">{copy.popular}</option>
+            </select>
+          </label>
+        </div>
+        <div className="filter-bottom">
+          <details className="filter-extra" open={!!(p.min || p.max || p.stock)}>
+            <summary>
+              <SlidersHorizontal size={15} />
+              {copy.moreFilters}
+              <ChevronDown size={15} />
+            </summary>
+            <div className="filter-options">
+              <label>
+                Min. MKD
+                <input name="min" type="number" min="0" defaultValue={p.min} />
+              </label>
+              <label>
+                Max. MKD
+                <input name="max" type="number" min="0" defaultValue={p.max} />
+              </label>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  name="stock"
+                  value="available"
+                  defaultChecked={p.stock === 'available'}
+                />
+                {copy.inStock}
+              </label>
+            </div>
+          </details>
+          <div className="filter-actions">
+            <Link href="/shop" className="text-link">
+              {copy.reset}
+            </Link>
+            <button className="button">{copy.apply}</button>
+          </div>
+        </div>
       </form>
       <div className="product-grid">
         {products.map((product) => (

@@ -138,7 +138,7 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
         </dialog>
       </div>
       <div className="product-purchase">
-        <p className="eyebrow orange">DESIGNED & PRINTED BY GRANDXSTUDIO</p>
+        <p className="eyebrow">{copy.studioLabel}</p>
         <h1 className="page-title">{p.name}</h1>
         <div className="row">
           <strong className="detail-price">{money(price)}</strong>

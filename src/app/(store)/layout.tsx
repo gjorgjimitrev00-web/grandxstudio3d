@@ -20,11 +20,17 @@ export default async function StoreLayout({ children }: { children: React.ReactN
             <Link href="/">
               <Logo name={s.storeName} />
             </Link>
-            <p className="footer-tag">{s.tagline}</p>
+            <p className="footer-tag">
+              {s.tagline === 'BRINGING IDEAS TO LIFE'
+                ? locale === 'en'
+                  ? 'Thoughtful objects for everyday living.'
+                  : 'Внимателно создадено за секојдневието.'
+                : s.tagline}
+            </p>
             <p className="muted">
-              Мали серии. Големи идеи.
-              <br />
-              Создадено во Македонија.
+              {locale === 'en'
+                ? 'Designed & made in Macedonia.'
+                : 'Дизајнирано и создадено во Македонија.'}
             </p>
           </div>
           <div>

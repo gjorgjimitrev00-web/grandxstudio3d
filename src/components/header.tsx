@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useRef } from 'react';
 import { Menu, Search, UserRound, X, ArrowUpRight } from 'lucide-react';
 import { CartButton } from './cart-context';
@@ -25,6 +26,7 @@ export function Header({
 }) {
   const menu = useRef<HTMLDialogElement>(null);
   const search = useRef<HTMLDialogElement>(null);
+  const pathname = usePathname();
   const links = [
     ['/', copy.home],
     ['/shop', copy.shop],
@@ -36,22 +38,28 @@ export function Header({
   return (
     <>
       <div className="announcement">
-        <span>Дизајнирано и печатено во Македонија</span>
         <span>
-          {copy.cod}
-          <ArrowUpRight size={13} />
+          {locale === 'en'
+            ? 'Designed & 3D printed in Macedonia'
+            : 'Дизајнирано и 3D печатено во Македонија'}
         </span>
+        <span>{copy.cod}</span>
       </div>
       <header className="header">
         <Link href="/" aria-label={name}>
           {logo ? <img className="custom-logo" src={logo} alt={name} /> : <Logo name={name} />}
         </Link>
-        <nav className="desktop-nav">
-          {links.map(([href, label]) => (
-            <Link href={href} key={href}>
-              {label}
-            </Link>
-          ))}
+        <nav
+          className="desktop-nav"
+          aria-label={locale === 'en' ? 'Main navigation' : 'Главна навигација'}
+        >
+          {links
+            .filter(([href]) => href !== '/' && href !== '/categories')
+            .map(([href, label]) => (
+              <Link href={href} key={href} aria-current={pathname === href ? 'page' : undefined}>
+                {label}
+              </Link>
+            ))}
         </nav>
         <div className="header-actions">
           <button
@@ -97,7 +105,12 @@ export function Header({
         </div>
         <nav>
           {links.map(([href, label]) => (
-            <Link href={href} key={href} onClick={() => menu.current?.close()}>
+            <Link
+              href={href}
+              key={href}
+              aria-current={pathname === href ? 'page' : undefined}
+              onClick={() => menu.current?.close()}
+            >
               {label}
               <ArrowUpRight />
             </Link>

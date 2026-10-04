@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { QuickAdd } from './quick-add';
-import { ArrowUpRight } from 'lucide-react';
 import { money } from '@/lib/utils';
 import type { Copy } from '@/lib/i18n';
 export type CardProduct = {
@@ -24,18 +23,11 @@ export function ProductCard({ product: p, copy }: { product: CardProduct; copy: 
           src={p.images[0]?.listingUrl || p.images[0]?.url || '/favicon.svg'}
           alt={p.images[0]?.altText || p.name}
         />
-        <span className={`badge ${p.salePrice !== null ? 'sale' : ''}`}>
-          {p.salePrice !== null
-            ? 'SALE'
-            : p.bestseller
-              ? 'BESTSELLER'
-              : p.isNew
-                ? 'NEW'
-                : 'STUDIO PICK'}
-        </span>
-        <span className="card-open" aria-label={copy.view}>
-          <ArrowUpRight size={21} />
-        </span>
+        {(p.salePrice !== null || p.bestseller || p.isNew) && (
+          <span className={`badge ${p.salePrice !== null ? 'sale' : ''}`}>
+            {p.salePrice !== null ? copy.sale : p.bestseller ? copy.bestsellerLabel : copy.newLabel}
+          </span>
+        )}
       </Link>
       <div className="product-caption">
         <span className="eyebrow muted">{p.categories?.[0]?.category.name || 'GRANDXSTUDIO'}</span>
@@ -47,11 +39,8 @@ export function ProductCard({ product: p, copy }: { product: CardProduct; copy: 
             <b>{money(p.salePrice ?? p.price)}</b>{' '}
             {p.salePrice !== null && <del>{money(p.price)}</del>}
           </p>
-          <Link className="small text-link" href={`/product/${p.slug}`}>
-            {copy.view}
-          </Link>
+          <QuickAdd id={p.id} name={p.name} copy={copy} />
         </div>
-        <QuickAdd id={p.id} name={p.name} copy={copy} />
       </div>
     </article>
   );

@@ -8,7 +8,6 @@ export function Newsletter({ copy }: { copy: Copy }) {
   return (
     <section className="newsletter">
       <div>
-        <p className="eyebrow">THE STUDIO LETTER</p>
         <h2>{copy.newsletter}</h2>
         <p>{copy.newsletterSub}</p>
       </div>

@@ -62,18 +62,19 @@ export default async function Home() {
         </div>
         <div className="hero-visual">
           <Image
-            src="/images/hero.webp"
+            src="/images/christmas-collection-hero.webp"
             alt={
               en
-                ? 'Sculptural 3D printed lighting and objects for the home'
-                : 'Скулптурална 3D печатена ламба и предмети за домот'
+                ? 'Our 3D printed Christmas collection: Santa, a polar bear, a tree, a gnome, baubles, a bell and Santa hats'
+                : 'Нашата 3D печатена новогодишна колекција: Дедо Мраз, поларно мече, елка, гном, лампиони, ѕвонче и капчиња'
             }
             preload
-            fill
+            width={1254}
+            height={1254}
             sizes="(max-width: 700px) 92vw, (min-width: 1500px) 620px, 46vw"
           />
-          <Link href="/shop" className="visual-label">
-            <span>{en ? 'Form meets everyday function.' : 'Форма со секојдневна функција.'}</span>
+          <Link href="/shop?category=christmas-decorations" className="visual-label">
+            <span>{en ? 'Explore the Christmas collection' : 'Откриј ја новогодишната колекција'}</span>
             <ArrowUpRight size={20} />
           </Link>
         </div>

@@ -39,7 +39,11 @@ export default async function Confirmation({
         </span>
         <p className="eyebrow orange">{order.number}</p>
         <h1 className="page-title">{copy.thanks}</h1>
-        <p className="muted">{copy.cod} — Плаќате кога ќе пристигне пратката.</p>
+        <p className="muted">
+          {order.paidAt
+            ? 'Плаќањето е потврдено / Payment confirmed'
+            : `${copy.cod} — Плаќате кога ќе пристигне пратката.`}
+        </p>
       </div>
       <div className="two-column">
         <div className="panel">
@@ -48,6 +52,9 @@ export default async function Confirmation({
             <div className="checkout-item" key={i.id}>
               <div>
                 <b>{i.name}</b>
+                {i.rewardGift && (
+                  <p className="status-pill">GrandX Rewards · {order.giftPoints} поени / points</p>
+                )}
                 <p className="small muted">
                   {i.variantName} × {i.quantity}
                 </p>
@@ -65,6 +72,12 @@ export default async function Confirmation({
             <span>{copy.subtotal}</span>
             <b>{money(order.subtotal)}</b>
           </div>
+          {order.rewardDiscount > 0 && (
+            <div className="row between">
+              <span>GrandX Rewards</span>
+              <b>−{money(order.rewardDiscount)}</b>
+            </div>
+          )}
           <div className="row between">
             <span>{copy.shipping}</span>
             <b>{money(order.shipping)}</b>
@@ -73,6 +86,23 @@ export default async function Confirmation({
             <h3>{copy.total}</h3>
             <h3>{money(order.total)}</h3>
           </div>
+          {order.refundedProducts > 0 && (
+            <p className="notice">
+              Вратен износ за производи / Product refund recorded: {money(order.refundedProducts)}
+            </p>
+          )}
+          {order.rewardsUserId && (
+            <p className="form-note">
+              <Link href="/rewards">GrandX Rewards ↗</Link> ·{' '}
+              {order.paidAt
+                ? order.pointsCredited
+                : order.status === 'CANCELLED'
+                  ? 0
+                  : order.pointsEarned}{' '}
+              поени / points{' '}
+              {order.paidAt ? '' : '(по испорака и плаќање / after delivery and payment)'}
+            </p>
+          )}
         </div>
         <div className="stack">
           <div className="panel">

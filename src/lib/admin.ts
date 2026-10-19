@@ -4,11 +4,13 @@ import { productSchema, categorySchema, text, optionalText, amount } from './val
 import { HttpError, readJson, limitedForm } from './security';
 import { optimizeImage, deleteFile, getFile } from './storage';
 import { updateOrderStatus } from './checkout';
+import { rewardsAdminRequest } from './rewards-admin';
 import { OrderStatus, RequestStatus } from '@prisma/client';
 import { defaults } from './settings';
 export async function adminRequest(request: Request, parts: string[]) {
   const [resource, id, action, childId] = parts;
   const method = request.method;
+  if (resource === 'rewards') return rewardsAdminRequest(request, id, action);
   if (resource === 'products') {
     if ((method === 'POST' && !id) || (method === 'PUT' && id && !action)) {
       const input = productSchema.parse(await readJson(request));

@@ -38,6 +38,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
             <Link href="/shop">{copy.all}</Link>
             <Link href="/categories">{copy.categories}</Link>
             <Link href="/custom-order">{copy.custom}</Link>
+            <Link href="/rewards">GrandX Rewards</Link>
           </div>
           <div>
             <h3>GrandXStudio</h3>

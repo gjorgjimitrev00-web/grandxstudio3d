@@ -74,11 +74,19 @@ export async function rateLimit(
   const now = Date.now();
   const bucket = Math.floor(now / (seconds * 1000));
   const key = hash(`${scope}:${identity || ip}:${bucket}`);
-  const r = await db.rateLimit.upsert({
-    where: { key },
-    create: { key, count: 1, expiresAt: new Date((bucket + 1) * seconds * 1000) },
-    update: { count: { increment: 1 } },
-  });
+  const r = await db.rateLimit
+    .upsert({
+      where: { key },
+      create: { key, count: 1, expiresAt: new Date((bucket + 1) * seconds * 1000) },
+      update: { count: { increment: 1 } },
+    })
+    .catch((error) => {
+      // Concurrent first requests can race MySQL's emulated upsert. Count the
+      // losing request instead of returning an unrelated duplicate-record error.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002')
+        throw error;
+      return db.rateLimit.update({ where: { key }, data: { count: { increment: 1 } } });
+    });
   if (r.count > limit) throw new HttpError(429, 'Too many requests. Please try again later.');
   if (Math.random() < 0.01)
     await db.rateLimit.deleteMany({ where: { expiresAt: { lt: new Date(now) } } });

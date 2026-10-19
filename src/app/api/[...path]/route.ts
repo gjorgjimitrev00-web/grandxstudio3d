@@ -19,6 +19,7 @@ import {
 } from '@/lib/security';
 import { email, password, text, optionalText, cartSchema, customSchema } from '@/lib/validation';
 import { createOrder, quoteCart } from '@/lib/checkout';
+import { rewardSelectionSchema } from '@/lib/rewards-rules';
 import { adminRequest } from '@/lib/admin';
 import { storePrivateFile, deleteFile, getFile } from '@/lib/storage';
 export const runtime = 'nodejs';
@@ -134,11 +135,19 @@ async function handler(request: Request, context: Context) {
     if (route === 'checkout/quote' && method === 'POST') {
       await rateLimit(request, 'quote', 300, 900);
       const input = z
-        .object({ items: cartSchema, shippingMethodId: text(100) })
+        .object({
+          items: cartSchema,
+          shippingMethodId: text(100),
+          rewards: rewardSelectionSchema.default({ discountPoints: 0, giftId: '' }),
+        })
         .parse(await readJson(request));
-      return Response.json(await quoteCart(db, input.items, input.shippingMethodId), {
-        headers: { 'Cache-Control': 'no-store' },
-      });
+      const user = await currentUser();
+      return Response.json(
+        await quoteCart(db, input.items, input.shippingMethodId, user?.id, input.rewards),
+        {
+          headers: { 'Cache-Control': 'no-store' },
+        },
+      );
     }
     if (route === 'checkout' && method === 'POST') {
       await rateLimit(request, 'checkout', 100, 3600);

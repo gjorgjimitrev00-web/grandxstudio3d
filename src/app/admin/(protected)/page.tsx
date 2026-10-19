@@ -23,14 +23,17 @@ export default async function Dashboard() {
     db.order.count({ where: { createdAt: { gte: today } } }),
     db.order.count({ where: { createdAt: { gte: month } } }),
     db.order.aggregate({
-      _sum: { total: true },
+      _sum: { total: true, refundedProducts: true },
       where: { status: 'DELIVERED', deliveredAt: { gte: today } },
     }),
     db.order.aggregate({
-      _sum: { total: true },
+      _sum: { total: true, refundedProducts: true },
       where: { status: 'DELIVERED', deliveredAt: { gte: month } },
     }),
-    db.order.aggregate({ _sum: { total: true }, where: { status: 'DELIVERED' } }),
+    db.order.aggregate({
+      _sum: { total: true, refundedProducts: true },
+      where: { status: 'DELIVERED' },
+    }),
     db.order.groupBy({ by: ['status'], _count: true }),
     db.product.count(),
     db.customer.count(),
@@ -56,9 +59,18 @@ export default async function Dashboard() {
         {[
           ['Orders today', String(ordersToday)],
           ['Orders this month', String(ordersMonth)],
-          ['Revenue today', money(revenueToday._sum.total || 0)],
-          ['Revenue this month', money(revenueMonth._sum.total || 0)],
-          ['Total collected revenue', money(revenue._sum.total || 0)],
+          [
+            'Delivered value today',
+            money((revenueToday._sum.total || 0) - (revenueToday._sum.refundedProducts || 0)),
+          ],
+          [
+            'Delivered value this month',
+            money((revenueMonth._sum.total || 0) - (revenueMonth._sum.refundedProducts || 0)),
+          ],
+          [
+            'Total delivered value',
+            money((revenue._sum.total || 0) - (revenue._sum.refundedProducts || 0)),
+          ],
           ['Products', String(products)],
           ['Low stock products', String(lowStock[0].total)],
           ['Customers', String(customers)],
@@ -70,7 +82,9 @@ export default async function Dashboard() {
         ))}
       </div>
       <p className="form-note">
-        Revenue counts delivered Cash on Delivery orders. Dates use Europe/Skopje.
+        Delivered order value after reward discounts and recorded product refunds, including
+        delivery. Payment confirmation is tracked per order. Dates use Europe/Skopje and the
+        original delivery date.
       </p>
       <div className="admin-section">
         <h2>Order pipeline</h2>

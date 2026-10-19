@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
-import { getCopy } from '@/lib/i18n';
+import { getCopy, getLocale } from '@/lib/i18n';
+import { rewardsSettings, availableGifts } from '@/lib/rewards';
 import { currentUser } from '@/lib/security';
 import { CheckoutForm } from '@/components/checkout-form';
 export const metadata = { title: 'Checkout', robots: { index: false, follow: false } };
@@ -15,6 +16,12 @@ export default async function Checkout() {
       (b.kind === 'STANDARD' ? 0 : b.kind === 'PICKUP' ? 1 : 2),
   );
   const user = await currentUser();
+  const [settings, gifts, account, locale] = await Promise.all([
+    rewardsSettings(),
+    availableGifts(),
+    user ? db.rewardsAccount.findUnique({ where: { userId: user.id } }) : null,
+    getLocale(),
+  ]);
   const customer = user
     ? await db.customer.findUnique({
         where: { userId: user.id },
@@ -40,7 +47,19 @@ export default async function Checkout() {
         {copy.cod} · {copy.country}
       </p>
       {methods.length ? (
-        <CheckoutForm methods={methods} profile={profile} />
+        <CheckoutForm
+          methods={methods}
+          profile={profile}
+          rewards={{
+            signedIn: !!user,
+            enabled: settings.enabled,
+            balance: account?.balance || 0,
+            minimumDiscountPoints: settings.minimumDiscountPoints,
+            maxDiscountPercent: settings.maxDiscountPercent,
+            locale,
+            gifts,
+          }}
+        />
       ) : (
         <div className="notice">
           Нарачките ќе бидат достапни наскоро. / Ordering will be available soon.

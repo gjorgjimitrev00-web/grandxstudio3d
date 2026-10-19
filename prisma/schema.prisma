@@ -50,16 +50,18 @@ enum OptionKind {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique @db.VarChar(191)
-  passwordHash String
-  name         String
-  role         Role      @default(CUSTOMER)
-  sessions     Session[]
-  customer     Customer?
-  chatPresence ChatPresence?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String          @id @default(cuid())
+  email          String          @unique @db.VarChar(191)
+  passwordHash   String
+  name           String
+  role           Role            @default(CUSTOMER)
+  sessions       Session[]
+  customer       Customer?
+  chatPresence   ChatPresence?
+  rewardsAccount RewardsAccount?
+  rewardsOrders  Order[]         @relation("RewardsOwner")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model Session {
@@ -127,6 +129,7 @@ model Product {
   variants          ProductVariant[]
   specifications    ProductSpecification[]
   orderItems        OrderItem[]
+  rewardGift        RewardGift?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
 
@@ -270,6 +273,18 @@ model Order {
   paymentMethod    String               @default("CASH_ON_DELIVERY")
   status           OrderStatus          @default(NEW)
   deliveredAt      DateTime?
+  paidAt           DateTime?
+  rewardsUserId    String?
+  rewardsUser      User?                @relation("RewardsOwner", fields: [rewardsUserId], references: [id], onDelete: SetNull)
+  rewardDiscount   Int                  @default(0)
+  giftPoints       Int                  @default(0)
+  pointsEarned     Int                  @default(0)
+  pointsCredited   Int                  @default(0)
+  pointsRestored   Int                  @default(0)
+  earnEveryMkd     Int                  @default(20)
+  refundedProducts Int                  @default(0)
+  giftReturned     Boolean              @default(false)
+  rewardsEntries   RewardsEntry[]
   subtotal         Int
   shipping         Int
   total            Int
@@ -286,6 +301,7 @@ model Order {
 
   @@index([status, createdAt])
   @@index([customerId, createdAt])
+  @@index([rewardsUserId, status])
   @@index([deliveredAt])
   @@index([createdAt])
 }
@@ -307,6 +323,7 @@ model OrderItem {
   subtotal      Int
   madeToOrder   Boolean              @default(false)
   stockDeducted Boolean              @default(false)
+  rewardGift    Boolean              @default(false)
   selections    OrderItemSelection[]
 
   @@index([orderId])
@@ -398,6 +415,41 @@ model StoreSetting {
   updatedAt DateTime @updatedAt
 }
 
+model RewardsAccount {
+  userId    String         @id
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance   Int            @default(0)
+  entries   RewardsEntry[]
+  updatedAt DateTime       @updatedAt
+}
+
+model RewardsEntry {
+  id        String         @id @default(cuid())
+  accountId String
+  account   RewardsAccount @relation(fields: [accountId], references: [userId], onDelete: Cascade)
+  orderId   String?
+  order     Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  eventKey  String         @unique @db.VarChar(191)
+  kind      String         @db.VarChar(40)
+  points    Int
+  note      String         @db.VarChar(500)
+  actorId   String?        @db.VarChar(191)
+  createdAt DateTime       @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([orderId])
+}
+
+model RewardGift {
+  id        String   @id @default(cuid())
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  points    Int
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model RateLimit {
   key       String   @id @db.VarChar(191)
   count     Int
@@ -423,8 +475,8 @@ model ChatConversation {
   email                String        @db.VarChar(191)
   status               ChatStatus    @default(OPEN)
   preview              String        @db.VarChar(200)
-  lastVisitorMessageId  Int           @default(0)
-  lastAdminMessageId    Int           @default(0)
+  lastVisitorMessageId Int           @default(0)
+  lastAdminMessageId   Int           @default(0)
   adminReadThrough     Int           @default(0)
   visitorReadThrough   Int           @default(0)
   messageCount         Int           @default(0)

@@ -34,6 +34,11 @@ test('password bounds use UTF-8 bytes for bcrypt safety', () => {
 test('structured data cannot terminate its script element', () =>
   assert.equal(safeJsonLd({ name: '</script><script>alert(1)</script>' }).includes('<'), false));
 test('MKD display groups thousands', () => assert.equal(money(2500), '2.500 ден.'));
+test('MKD formatting is deterministic for credits, zero and large totals', () => {
+  assert.equal(money(-1000), '-1.000 ден.');
+  assert.equal(money(0), '0 ден.');
+  assert.equal(money(1000000), '1.000.000 ден.');
+});
 import { skopjeMidnight } from '../src/lib/time';
 test('revenue reporting uses correct local midnight across summer and winter', () => {
   assert.equal(skopjeMidnight(2026, 9, 1).toISOString(), '2026-08-31T22:00:00.000Z');

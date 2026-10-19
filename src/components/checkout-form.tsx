@@ -6,6 +6,9 @@ import { LockKeyhole, PackageCheck } from 'lucide-react';
 import { useCart, CartLines } from './cart-context';
 import { money } from '@/lib/utils';
 import { api } from './api-form';
+import { RewardsPicker, type CheckoutRewards } from './rewards-picker';
+import { rewardsCopy } from '@/lib/rewards-copy';
+import { discountLimit } from '@/lib/rewards-rules';
 type Shipping = {
   id: string;
   name: string;
@@ -23,10 +26,20 @@ type Profile = {
   postalCode?: string;
 };
 type Quote = {
+  rewardDiscount: number;
+  giftPoints: number;
+  pointsEarned: number;
+  rewards: { balance: number; maxDiscount: number };
   subtotal: number;
   shipping: number;
   total: number;
-  lines: { name: string; quantity: number; unitPrice: number; variantName?: string }[];
+  lines: {
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    variantName?: string;
+    rewardGift: boolean;
+  }[];
 };
 export function FullCart() {
   const { items, copy } = useCart();
@@ -68,12 +81,17 @@ export function FullCart() {
 export function CheckoutForm({
   methods,
   profile = {},
+  rewards,
 }: {
   methods: Shipping[];
   profile?: Profile;
+  rewards: CheckoutRewards;
 }) {
   const { items, clear, copy } = useCart();
   const [method, setMethod] = useState(methods[0]?.id || '');
+  const [discountPoints, setDiscountPoints] = useState(0);
+  const [giftId, setGiftId] = useState('');
+  const rt = rewardsCopy[rewards.locale];
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -94,7 +112,11 @@ export function CheckoutForm({
     let cancelled = false;
     setQuote(null);
     setError('');
-    api('/api/checkout/quote', 'POST', { items: JSON.parse(cartJson), shippingMethodId: method })
+    api('/api/checkout/quote', 'POST', {
+      items: JSON.parse(cartJson),
+      shippingMethodId: method,
+      rewards: { discountPoints, giftId },
+    })
       .then((result) => {
         if (!cancelled) setQuote(result);
       })
@@ -104,9 +126,15 @@ export function CheckoutForm({
     return () => {
       cancelled = true;
     };
-  }, [cartJson, method]);
+  }, [cartJson, method, discountPoints, giftId]);
   useEffect(() => {
-    const fingerprint = cartJson + method;
+    const fingerprint = JSON.stringify([
+      cartJson,
+      method,
+      discountPoints,
+      giftId,
+      rewards.signedIn,
+    ]);
     const stored = sessionStorage.getItem('gx-checkout');
     try {
       const parsed = JSON.parse(stored || 'null');
@@ -115,7 +143,7 @@ export function CheckoutForm({
       key.current = crypto.randomUUID();
     }
     sessionStorage.setItem('gx-checkout', JSON.stringify({ key: key.current, fingerprint }));
-  }, [cartJson, method]);
+  }, [cartJson, method, discountPoints, giftId, rewards.signedIn]);
   if (!items.length)
     return (
       <div className="empty">
@@ -141,6 +169,7 @@ export function CheckoutForm({
             items: cart,
             shippingMethodId: method,
             idempotencyKey: key.current,
+            rewards: { discountPoints, giftId },
           });
           sessionStorage.removeItem('gx-checkout');
           clear();
@@ -153,6 +182,21 @@ export function CheckoutForm({
       }}
     >
       <div className="stack">
+        <RewardsPicker
+          data={{ ...rewards, balance: quote?.rewards.balance ?? rewards.balance }}
+          points={discountPoints}
+          giftId={giftId}
+          onPoints={setDiscountPoints}
+          onGift={setGiftId}
+          maxDiscount={
+            quote?.rewards.maxDiscount ??
+            discountLimit(
+              items.reduce((n, i) => n + i.quantity * i.price, 0),
+              rewards.balance - (rewards.gifts.find((g) => g.id === giftId)?.points || 0),
+              rewards.maxDiscountPercent,
+            )
+          }
+        />
         <div className="panel">
           <h2>01 — {copy.shipping}</h2>
           <div className="form-grid">
@@ -239,6 +283,7 @@ export function CheckoutForm({
           <div className="checkout-item" key={i}>
             <div>
               <b>{line.name}</b>
+              {line.rewardGift && <p className="status-pill">{rt.gift}</p>}
               <p className="small muted">
                 {line.variantName} × {line.quantity}
               </p>
@@ -260,6 +305,21 @@ export function CheckoutForm({
               <span>{copy.total}</span>
               <b>{money(quote.total)}</b>
             </div>
+            {quote.rewardDiscount > 0 && (
+              <p className="success-text">GrandX Rewards: −{money(quote.rewardDiscount)}</p>
+            )}
+            {quote.rewardDiscount + quote.giftPoints > 0 && (
+              <p className="small">
+                {quote.rewardDiscount + quote.giftPoints} {rt.points} · {rt.usePoints}
+              </p>
+            )}
+            {rewards.signedIn && rewards.enabled && (
+              <p className="form-note">
+                {rt.earn}: <b>{quote.pointsEarned}</b>
+                <br />
+                {rt.pendingNote}
+              </p>
+            )}
           </>
         ) : (
           <p>{error ? '' : copy.loading}</p>

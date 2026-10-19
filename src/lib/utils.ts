@@ -1,5 +1,9 @@
 export function money(value: number) {
-  return `${new Intl.NumberFormat('mk-MK', { maximumFractionDigits: 0 }).format(value)} ден.`;
+  // Prices are whole MKD. Keep the same separators during server rendering and
+  // hydration even in browsers that fall back from the Macedonian ICU locale.
+  return `${Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '.')} ден.`;
 }
 export const siteUrl = () =>
   (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');

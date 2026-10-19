@@ -24,6 +24,7 @@ export default async function Account() {
     include: { addresses: { take: 1 }, orders: { orderBy: { createdAt: 'desc' }, take: 50 } },
   });
   const address = customer?.addresses[0];
+  const rewards = await db.rewardsAccount.findUnique({ where: { userId: user.id } });
   return (
     <div className="page">
       <div className="section-heading">
@@ -38,6 +39,14 @@ export default async function Account() {
         </Link>
       )}
       <div className="two-column">
+        <Link href="/rewards" className="panel rewards-account-link">
+          <span>
+            <b>GrandX Rewards</b>
+            <br />
+            {rewards?.balance || 0} поени / points
+          </span>
+          <span>Попусти и подароци / Discounts & gifts ↗</span>
+        </Link>
         <section className="panel">
           <h2>{copy.orders}</h2>
           {customer?.orders.length ? (

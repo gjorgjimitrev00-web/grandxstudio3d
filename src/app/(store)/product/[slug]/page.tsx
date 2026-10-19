@@ -6,6 +6,7 @@ import { getCopy } from '@/lib/i18n';
 import { ProductDetail } from '@/components/product-detail';
 import { ProductCard } from '@/components/product-card';
 import { safeJsonLd, siteUrl, serialize } from '@/lib/utils';
+import { rewardsSettings } from '@/lib/rewards';
 const getProduct = cache((slug: string) =>
   db.product.findFirst({
     where: { slug, published: true },
@@ -42,6 +43,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const p = await getProduct((await params).slug);
   if (!p) notFound();
   const copy = await getCopy();
+  const rewards = await rewardsSettings();
   const related = await db.product.findMany({
     where: {
       published: true,
@@ -107,6 +109,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <span>{p.name}</span>
       </div>
       <ProductDetail product={serialize(p)} copy={copy} />
+      {rewards.enabled && (
+        <p className="notice">
+          <Link href="/rewards">GrandX Rewards ↗</Link> · 1 поен / point за / per{' '}
+          {rewards.earnEveryMkd} MKD. Попусти и подароци / Discounts & printed gifts.
+        </p>
+      )}
       <div className="product-information">
         <div>
           <h2>{copy.description}</h2>

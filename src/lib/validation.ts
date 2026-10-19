@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { rewardSelectionSchema } from './rewards-rules';
 export const email = z.email().trim().toLowerCase().max(191);
 export const password = z
   .string()
@@ -25,6 +26,7 @@ export const cartSchema = z
   .min(1)
   .max(50);
 export const checkoutSchema = z.object({
+  rewards: rewardSelectionSchema.default({ discountPoints: 0, giftId: '' }),
   items: cartSchema,
   shippingMethodId: text(100),
   firstName: text(100),

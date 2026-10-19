@@ -34,3 +34,16 @@ The following cannot be represented as completed local tests:
 - Verify backups and a staging restore. Choose a retention policy for customer and private design data.
 
 The source is prepared for Hostinger; a local passing build and local upload persistence are not evidence of a successful Hostinger deployment. No external email/SMS service or payment gateway is connected or required. No email messages are sent automatically.
+
+## GrandX Rewards — 19 October 2026
+
+Verified in a clean checkout on Node 24 / Next.js 16.3.6 (Webpack), using an isolated MySQL 8.4 database and local servers. No production customer data was used.
+
+- Production build and TypeScript: passed.
+- Unit suite: 15 passed.
+- Store, chat and rewards integration suites: 32 passed. The existing media tests ran on the development server because local storage is deliberately disabled in production.
+- Rewards production browser flow: passed. It creates an admin-selected gift, grants a bonus, signs in a customer, spends points on a discount and gift together, confirms COD delivery/payment, records a full return, and verifies the restored balance. It checks admin authorization, cross-origin rejection, English/Macedonian rendering and layouts at 1440, 1280, 768 and 390 pixels. No client errors remained.
+- Additional production HTTP check confirmed simultaneous checkout retries create one order and debit points once. Database tests also cover partial refunds, debt after returned earnings were spent, stock races, program pause and earning-rate snapshots.
+- A shared request-limit counter race found during regression checks was fixed without weakening limits. Currency formatting now stays consistent when a browser falls back from the Macedonian locale, avoiding hydration errors on product prices.
+
+The gift catalog intentionally starts empty. The owner selects products and their point costs in Admin → Rewards. Deployment uses the existing `npm run deploy:build`, including the additive `202610190001_rewards` migration. Live deployment and a real fulfillment/payment check remain separate from these local results.

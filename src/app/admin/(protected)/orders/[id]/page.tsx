@@ -5,6 +5,7 @@ import { money } from '@/lib/utils';
 import { AdminHeading } from '@/components/admin-shared';
 import { StatusForm } from '@/components/admin-forms';
 import { statusTransitions } from '@/lib/checkout';
+import { OrderRewardsControls } from '@/components/rewards-admin-forms';
 export default async function OrderDetails({ params }: { params: Promise<{ id: string }> }) {
   await requireAdminPage();
   const o = await db.order.findUnique({
@@ -29,6 +30,9 @@ export default async function OrderDetails({ params }: { params: Promise<{ id: s
               <div className="checkout-item" key={i.id}>
                 <div>
                   <b>{i.name}</b>
+                  {i.rewardGift && (
+                    <p className="status-pill">REWARD GIFT · {o.giftPoints} POINTS</p>
+                  )}
                   <p>
                     {i.variantName} · {i.sku}
                   </p>
@@ -58,6 +62,12 @@ export default async function OrderDetails({ params }: { params: Promise<{ id: s
                 <span>{o.shippingName}</span>
                 <b>{money(o.shipping)}</b>
               </div>
+              {o.rewardDiscount > 0 && (
+                <div>
+                  <span>Rewards discount</span>
+                  <b>−{money(o.rewardDiscount)}</b>
+                </div>
+              )}
               <div>
                 <h3>Total</h3>
                 <h3>{money(o.total)}</h3>
@@ -90,6 +100,25 @@ export default async function OrderDetails({ params }: { params: Promise<{ id: s
           </section>
         </div>
         <div className="stack">
+          <section className="panel">
+            <h2>Payment & rewards</h2>
+            <p>
+              {o.pointsCredited} points credited · {o.pointsEarned} originally earned
+            </p>
+            {o.refundedProducts > 0 && <p>Product refunds recorded: {money(o.refundedProducts)}</p>}
+            <OrderRewardsControls
+              order={{
+                id: o.id,
+                status: o.status,
+                paid: !!o.paidAt,
+                subtotal: o.subtotal,
+                rewardDiscount: o.rewardDiscount,
+                giftPoints: o.giftPoints,
+                refundedProducts: o.refundedProducts,
+                giftReturned: o.giftReturned,
+              }}
+            />
+          </section>
           <section className="panel">
             <h2>Manage order</h2>
             <StatusForm

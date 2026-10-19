@@ -95,7 +95,28 @@ node --import tsx tests/chat-browser.ts
 
 The chat suite covers private visitor sessions, admin authorization, cross-origin rejection, concurrent retries, read markers, message pagination, online expiry, disabled chat and conversation expiry. Browser checks exercise a customer/admin exchange and responsive layouts.
 
-## Testing
+## GrandX Rewards
+
+Customers can earn points for **both discounts and printed gifts** at `/rewards`. They must sign in before checkout; matching a guest email never claims an order or awards points. Existing orders are not backfilled.
+
+- Defaults: **1 point per 20 MKD** paid for products, **1 point = 1 MKD** discount, minimum **100 points**, maximum **20%** of the product subtotal. Delivery and gift value are excluded from earnings. Points do not expire. Review your margins and adjust these rules in **Admin → Rewards** (`/admin/rewards`); earning and redemption can also be paused there.
+- The gift catalog starts empty. Choose your own published products and point costs in Admin → Rewards. Gifts must be available products without variants or required options; hide or disable them at any time. One gift may accompany a paid order. A customer may use a discount and a gift together if their balance covers both. Gift stock shares the ordinary product inventory.
+- Points are deducted atomically when checkout succeeds. The order snapshots its earning rate and reward amounts. Free shipping is calculated on the paid cart before reward discounts; gifts do not help reach its threshold.
+- In **Admin → Orders**, mark an order **Delivered**, then click **Confirm cash payment received**. This releases earned points exactly once. Delivery alone does not award points. Existing orders remain eligible for recording payment, but earn no retrospective points.
+- Cancellation automatically restores redeemed points and tracked stock once. On delivered, paid orders, **Record a return / refund** accepts the cumulative product refund in MKD, excluding delivery. It reverses proportional earnings and restores discount points proportionally. Gift points return only when the gift is marked returned. This records an offline refund; it does not transfer money or restock returned products. Inspect and update physical stock separately. A return can produce a negative points balance if the customer already spent their earnings; future earnings repay that balance.
+- In **Admin → Customers → customer**, view balances/history and grant or subtract points with a customer-visible reason. Adjustments are authenticated, audited and retry-safe. Ordinary manual debits cannot overdraw the account. Guest customers cannot receive points without an account.
+- Deploy using the existing `npm run deploy:build`. Migration `202610190001_rewards` adds tables and columns without replacing existing order or customer data. No new environment variables or third-party service are needed. Retain your normal database backup before migrations. After deployment choose gifts and verify a real signed-in test order through delivery/payment confirmation.
+
+Rewards verification on a disposable database:
+
+```sh
+node --import tsx --test tests/integration/rewards.test.ts
+node --import tsx tests/rewards-browser.ts
+```
+
+The database suite covers concurrent spending/retries, gift stock, pending earnings, payment confirmation, cancellation, partial/full returns, pause behavior, historical earning rates and negative balances after returns. The browser suite covers admin gift setup, bonus points, customer redemption, payment confirmation, returns and responsive screens.
+
+## Test commands
 
 ```sh
 npm test

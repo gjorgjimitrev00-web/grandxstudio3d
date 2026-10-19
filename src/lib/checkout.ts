@@ -3,12 +3,16 @@ import { z } from 'zod';
 import { db } from './db';
 import { cartSchema, checkoutSchema } from './validation';
 import { HttpError, hash, orderToken } from './security';
+import {
+  rewardsSettings,
+  eligibleGift,
+  giftProductInclude,
+  postPoints,
+  settleOrderRewards,
+} from './rewards';
+import { discountLimit, earnedPoints, type RewardSelection } from './rewards-rules';
 type Tx = Prisma.TransactionClient;
-export async function quoteCart(
-  tx: Tx,
-  items: z.infer<typeof cartSchema>,
-  shippingMethodId: string,
-) {
+async function quoteProducts(tx: Tx, items: z.infer<typeof cartSchema>, shippingMethodId: string) {
   const products = await tx.product.findMany({
     where: { id: { in: items.map((i) => i.productId) }, published: true },
     include: {
@@ -62,6 +66,7 @@ export async function quoteCart(
       subtotal: unitPrice * item.quantity,
       madeToOrder: p.inventoryMode === 'MADE_TO_ORDER',
       stockDeducted: p.trackInventory,
+      rewardGift: false,
       selections,
     };
   });
@@ -78,6 +83,75 @@ export async function quoteCart(
       ? 0
       : method.price;
   return { lines, subtotal, shipping, total: subtotal + shipping, shippingName: method.name };
+}
+export async function quoteCart(
+  tx: Tx,
+  items: z.infer<typeof cartSchema>,
+  shippingMethodId: string,
+  userId?: string,
+  selection: RewardSelection = { discountPoints: 0, giftId: '' },
+) {
+  const quote = await quoteProducts(tx, items, shippingMethodId);
+  const settings = await rewardsSettings(tx);
+  const account = userId ? await tx.rewardsAccount.findUnique({ where: { userId } }) : null;
+  const balance = account?.balance || 0;
+  if ((selection.discountPoints || selection.giftId) && (!userId || !settings.enabled))
+    throw new HttpError(400, userId ? 'Rewards are currently paused.' : 'Sign in to use rewards.');
+  let giftPoints = 0;
+  if (selection.giftId) {
+    const gift = await tx.rewardGift.findUnique({
+      where: { id: selection.giftId },
+      include: { product: { include: giftProductInclude } },
+    });
+    if (!gift?.enabled || !eligibleGift(gift.product))
+      throw new HttpError(409, 'This reward gift is no longer available. Choose another gift.');
+    if (quote.subtotal <= 0) throw new HttpError(400, 'Add a paid product to claim a gift.');
+    // Revalidate combined quantities so a gift cannot oversell the same product in the cart.
+    const combined = await quoteProducts(
+      tx,
+      [...items, { productId: gift.productId, quantity: 1, options: {} }],
+      shippingMethodId,
+    );
+    const giftLine = combined.lines[combined.lines.length - 1];
+    quote.lines.push({ ...giftLine, unitPrice: 0, subtotal: 0, rewardGift: true });
+    giftPoints = gift.points;
+  }
+  const maxDiscount = discountLimit(
+    quote.subtotal,
+    balance - giftPoints,
+    settings.maxDiscountPercent,
+  );
+  if (
+    selection.discountPoints &&
+    (selection.discountPoints < settings.minimumDiscountPoints ||
+      selection.discountPoints > maxDiscount)
+  )
+    throw new HttpError(
+      400,
+      `Use at least ${settings.minimumDiscountPoints} points, up to ${maxDiscount} points for this order.`,
+    );
+  if (selection.discountPoints + giftPoints > Math.max(0, balance))
+    throw new HttpError(409, 'Not enough available points for these rewards.');
+  const rewardDiscount = selection.discountPoints;
+  const pointsEarned =
+    userId && settings.enabled
+      ? earnedPoints(quote.subtotal - rewardDiscount, settings.earnEveryMkd)
+      : 0;
+  return {
+    ...quote,
+    total: quote.total - rewardDiscount,
+    rewardDiscount,
+    giftPoints,
+    pointsEarned,
+    earnEveryMkd: settings.earnEveryMkd,
+    rewardsUserId: userId && settings.enabled ? userId : null,
+    rewards: {
+      enabled: settings.enabled,
+      balance,
+      maxDiscount,
+      minimumDiscountPoints: settings.minimumDiscountPoints,
+    },
+  };
 }
 export async function serializable<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -103,9 +177,16 @@ export async function createOrder(raw: unknown, userId?: string) {
   const input = checkoutSchema.parse(raw);
   const token = orderToken(input.idempotencyKey);
   const order = await serializable(async (tx) => {
-    const existing = await tx.order.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-    if (existing) return existing;
-    const quote = await quoteCart(tx, input.items, input.shippingMethodId);
+    const existing = await tx.order.findUnique({
+      where: { idempotencyKey: input.idempotencyKey },
+      include: { customer: { select: { userId: true } } },
+    });
+    if (existing) {
+      if (existing.customer.userId !== (userId || null))
+        throw new HttpError(409, 'Checkout session changed. Please refresh your cart.');
+      return existing;
+    }
+    const quote = await quoteCart(tx, input.items, input.shippingMethodId, userId, input.rewards);
     for (const line of quote.lines) {
       if (!line.stockDeducted) continue;
       const result = line.variantId
@@ -144,10 +225,11 @@ export async function createOrder(raw: unknown, userId?: string) {
       update: { value: { increment: 1 } },
     });
     const number = `GX-${year}-${String(sequence.value).padStart(6, '0')}`;
-    const { items, idempotencyKey, acceptTerms, ...address } = input;
+    const { items, idempotencyKey, acceptTerms, rewards, ...address } = input;
     void items;
     void acceptTerms;
-    return tx.order.create({
+    void rewards;
+    const created = await tx.order.create({
       data: {
         ...address,
         idempotencyKey,
@@ -158,6 +240,11 @@ export async function createOrder(raw: unknown, userId?: string) {
         shipping: quote.shipping,
         total: quote.total,
         shippingName: quote.shippingName,
+        rewardDiscount: quote.rewardDiscount,
+        giftPoints: quote.giftPoints,
+        pointsEarned: quote.pointsEarned,
+        earnEveryMkd: quote.earnEveryMkd,
+        rewardsUserId: quote.rewardsUserId,
         items: {
           create: quote.lines.map(({ selections, ...line }) => ({
             ...line,
@@ -167,6 +254,16 @@ export async function createOrder(raw: unknown, userId?: string) {
         history: { create: { status: 'NEW', note: 'Cash on Delivery order received.' } },
       },
     });
+    if (userId)
+      await postPoints(tx, {
+        userId,
+        points: -(quote.rewardDiscount + quote.giftPoints),
+        eventKey: `order:${created.id}:redeemed`,
+        kind: 'REDEEMED',
+        orderId: created.id,
+        note: `Checkout rewards · ${created.number}`,
+      });
+    return created;
   });
   return { order, token };
 }
@@ -209,7 +306,7 @@ export async function updateOrderStatus(id: string, status: OrderStatus, interna
           });
       }
     }
-    return tx.order.update({
+    const updated = await tx.order.update({
       where: { id },
       data: {
         status,
@@ -221,5 +318,6 @@ export async function updateOrderStatus(id: string, status: OrderStatus, interna
         ...(status !== order.status ? { history: { create: { status } } } : {}),
       },
     });
+    return settleOrderRewards(tx, updated);
   });
 }

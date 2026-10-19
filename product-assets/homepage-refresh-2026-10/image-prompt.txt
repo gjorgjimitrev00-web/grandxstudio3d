@@ -1,0 +1,11 @@
+Mode: built-in ImageGen
+Generated asset: public/images/studio-objects-2026.webp
+Original: product-assets/homepage-refresh-2026-10/studio-objects-2026.png
+
+Use case: compositing
+Asset type: editorial product photograph for the GrandXStudio homepage custom-order section, landscape 4:3.
+Primary request: Create one refined, photorealistic still life featuring ONLY the four exact 3D-printed products in the supplied reference images, together on a pale warm oak studio table against a soft ivory plaster wall.
+Input images: 1 is the white illuminated spiral table lamp, retain its sculptural ribbed shade and thin natural-colored base. 2 is the red empty twisting ribbed vase with flared scalloped rim. 3 is the olive-green miniature armchair-shaped phone holder, retain its small proportions and textured printed surface, no phone. 4 is the blush-pink ribbed candle holder with its included small white LED tealight and plastic flame, no real fire.
+Composition: the glowing white lamp at the back left, red vase at the back right, little green armchair in the foreground left and pink LED holder in the foreground right. A relaxed asymmetric arrangement with space between objects; all four products fully visible, not touching, centered comfortably within the frame with generous outer breathing room for responsive cropping. Lamp and vase are taller than the phone holder; no exaggerated scale. Entire image is a product photograph, not a website mockup.
+Lighting: soft morning window light from left, gentle shadows, warm neutral background, realistic matte printed texture and visible fine ribs. Sophisticated modern design-studio mood, restrained and uncluttered.
+Constraints: preserve every product's identity, silhouette, original color and proportions. Do not redesign or smooth away the 3D-printed detail. Vase is empty, no flowers. No additional decor, no people, no hands, no text, no logos, no watermark. Not a collage or multi-panel image.

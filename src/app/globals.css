@@ -506,41 +506,81 @@ legend {
 }
 .custom-banner {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 0.9fr 1.1fr;
   margin: 10px var(--gutter) 72px;
-  border-radius: 20px;
+  border: 1px solid #e4e3d9;
+  border-radius: 24px;
   overflow: hidden;
-  background: #f0eee7;
+  background: #eeefe8;
   color: var(--ink);
 }
 .custom-art {
   position: relative;
   overflow: hidden;
-  background: #eaebe7;
-  max-height: 400px;
-  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  min-width: 0;
+  background: #f4efe6;
 }
 .custom-art img {
   width: 100%;
+  min-height: 0;
   height: 100%;
+  flex: 1;
   object-fit: cover;
+}
+.custom-art figcaption {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  padding: 17px 24px;
+  border-top: 1px solid #e4e3d9;
+  color: #63675d;
+  font-size: 11px;
+}
+.custom-art figcaption span:first-child {
+  color: var(--ink);
+  font-weight: 600;
 }
 .custom-copy {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  padding: 40px 12%;
+  padding: clamp(32px, 4vw, 64px);
   gap: 20px;
 }
+.custom-copy .eyebrow {
+  color: #58634e;
+}
 .custom-copy h2 {
-  font-size: clamp(28px, 3vw, 42px);
-  line-height: 1.15;
+  font-size: clamp(30px, 3.2vw, 48px);
+  line-height: 1.1;
+  text-wrap: balance;
 }
 .custom-copy p:not(.eyebrow) {
   font-size: 14px;
   color: var(--muted);
-  max-width: 340px;
+  max-width: 370px;
+}
+.custom-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 18px 0 0;
+  width: 100%;
+  border-top: 1px solid #d9ddd1;
+  color: #58634e;
+  font-size: 12px;
+}
+.custom-details li + li::before {
+  content: '·';
+  margin-right: 18px;
+  color: #929b88;
 }
 .newsletter {
   display: grid;
@@ -2809,7 +2849,7 @@ select:focus {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .custom-copy {
-    padding: 30px 9%;
+    padding: 32px;
   }
 }
 @media (max-width: 700px) {
@@ -2883,15 +2923,28 @@ select:focus {
     margin-bottom: 44px;
   }
   .custom-art {
-    min-height: 0;
-    height: 280px;
+    order: -1;
+  }
+  .custom-art img {
+    height: auto;
+    aspect-ratio: 4 / 3;
+    flex: none;
+  }
+  .custom-art figcaption {
+    padding: 14px 20px;
   }
   .custom-copy {
     padding: 30px 25px;
     gap: 18px;
   }
   .custom-copy h2 {
-    font-size: 30px;
+    font-size: clamp(30px, 7.8vw, 40px);
+  }
+  .custom-details {
+    gap: 8px 12px;
+  }
+  .custom-details li + li::before {
+    margin-right: 12px;
   }
   .newsletter {
     grid-template-columns: 1fr;

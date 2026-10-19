@@ -6,24 +6,45 @@ import { db } from '@/lib/db';
 import { getCopy, getLocale } from '@/lib/i18n';
 import { ProductCard } from '@/components/product-card';
 import { Newsletter } from '@/components/newsletter';
+import { selectStudioProducts } from '@/lib/studio-products';
+import type { Prisma } from '@prisma/client';
+
+const productInclude = {
+  images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }], take: 1 },
+  categories: { where: { category: { enabled: true } }, include: { category: true } },
+} satisfies Prisma.ProductInclude;
+
 export const metadata = { alternates: { canonical: '/' } };
 export default async function Home() {
   const [copy, locale, settings] = await Promise.all([getCopy(), getLocale(), getSettings()]);
   const en = locale === 'en';
-  const [products, categories] = process.env.DATABASE_URL
+  const [recentProducts, categories] = process.env.DATABASE_URL
     ? await Promise.all([
         db.product.findMany({
-          where: { published: true, featured: true },
-          include: {
-            images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }], take: 1 },
-            categories: { include: { category: true } },
-          },
-          take: 4,
-          orderBy: { createdAt: 'desc' },
+          where: { published: true },
+          include: productInclude,
+          take: 8,
+          orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
         }),
-        db.category.findMany({ where: { enabled: true }, orderBy: { sortOrder: 'asc' }, take: 8 }),
+        db.category.findMany({
+          where: { enabled: true },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+          take: 8,
+          include: {
+            products: {
+              where: { product: { published: true } },
+              orderBy: [{ product: { createdAt: 'desc' } }, { productId: 'asc' }],
+              take: 2,
+              include: { product: { include: productInclude } },
+            },
+          },
+        }),
       ])
     : [[], []];
+  const products = selectStudioProducts(
+    categories.map((category) => category.products.map(({ product }) => product)),
+    recentProducts,
+  );
   return (
     <>
       <section className="hero">
@@ -74,7 +95,9 @@ export default async function Home() {
             sizes="(max-width: 700px) 92vw, (min-width: 1500px) 620px, 46vw"
           />
           <Link href="/shop?category=christmas-decorations" className="visual-label">
-            <span>{en ? 'Explore the Christmas collection' : 'Откриј ја новогодишната колекција'}</span>
+            <span>
+              {en ? 'Explore the Christmas collection' : 'Откриј ја новогодишната колекција'}
+            </span>
             <ArrowUpRight size={20} />
           </Link>
         </div>
@@ -98,6 +121,11 @@ export default async function Home() {
           <div>
             <p className="eyebrow">{en ? 'From the studio' : 'Од студиото'}</p>
             <h2>{copy.featured}</h2>
+            <p className="muted">
+              {en
+                ? 'Lighting, vases, useful little objects and a touch of celebration.'
+                : 'Светло, вазни, практични мали предмети и малку празнична радост.'}
+            </p>
           </div>
           <Link href="/shop" className="text-link">
             {copy.all}
@@ -149,27 +177,45 @@ export default async function Home() {
           </div>
         </section>
       )}
-      <section className="custom-banner">
-        <div className="custom-art">
-          <img
-            src="/images/headphones.webp"
-            loading="lazy"
-            alt={
-              en
-                ? 'Blue 3D printed headphone stand on a desk'
-                : 'Сина 3D печатена основа за слушалки'
-            }
-          />
-        </div>
+      <section className="custom-banner" aria-labelledby="custom-order-title">
         <div className="custom-copy">
           <p className="eyebrow">{en ? 'A little more personal' : 'Нешто лично твое'}</p>
-          <h2>{copy.customTitle}</h2>
-          <p>{copy.customText}</p>
+          <h2 id="custom-order-title">{copy.customTitle}</h2>
+          <p>
+            {en
+              ? 'A detail for your home. A gift with a story. Tell us what you have in mind and we’ll explore how to bring it to life with 3D printing.'
+              : 'Детал за твојот дом. Подарок со приказна. Кажи ни што замислуваш и заедно ќе најдеме начин да го создадеме со 3D печатење.'}
+          </p>
+          <ul
+            className="custom-details"
+            aria-label={en ? 'Make it your own' : 'Додај свој карактер'}
+          >
+            <li>{en ? 'Your colour' : 'Твоја боја'}</li>
+            <li>{en ? 'Your shape' : 'Твоја форма'}</li>
+            <li>{en ? 'Your detail' : 'Твој детал'}</li>
+          </ul>
           <Link href="/custom-order" className="button">
-            {copy.customOrder}
+            {en ? 'Share your idea' : 'Сподели ја твојата идеја'}
             <ArrowUpRight size={18} />
           </Link>
         </div>
+        <figure className="custom-art">
+          <Image
+            src="/images/studio-objects-2026.webp"
+            width={1448}
+            height={1086}
+            sizes="(max-width: 700px) 90vw, (min-width: 1500px) 700px, 50vw"
+            alt={
+              en
+                ? 'Studio composition with our white spiral lamp, red vase, green armchair phone holder and pink LED candle holder'
+                : 'Студиска композиција со нашата бела спирална ламба, црвена вазна, зелен држач за телефон и розов LED држач'
+            }
+          />
+          <figcaption>
+            <span>GrandXStudio</span>
+            <span>{en ? 'A few ideas to start with.' : 'Неколку идеи за почеток.'}</span>
+          </figcaption>
+        </figure>
       </section>
       <Newsletter copy={copy} />
     </>

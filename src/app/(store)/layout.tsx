@@ -50,9 +50,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
                 : s.tagline}
             </p>
             <p className="muted">
-              {locale === 'en'
-                ? 'Designed & made in Macedonia.'
-                : 'Дизајнирано и создадено во Македонија.'}
+              {locale === 'en' ? '3D printed in Macedonia.' : '3D печатено во Македонија.'}
             </p>
           </div>
           <div>

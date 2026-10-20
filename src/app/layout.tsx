@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s | ${settings.storeName}`,
     },
     description:
-      'Функционални додатоци, оригинални дизајни и персонализирани 3D печатени производи. Создадено во Македонија.',
+      'Функционални додатоци, декорации и персонализирани 3D печатени производи. Печатено во Македонија.',
     icons: { icon: '/favicon.svg' },
     openGraph: { type: 'website', siteName: settings.storeName, locale: 'mk_MK' },
     twitter: { card: 'summary' },

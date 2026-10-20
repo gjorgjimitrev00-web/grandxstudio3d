@@ -40,8 +40,8 @@ export function Header({
       <div className="announcement">
         <span>
           {locale === 'en'
-            ? 'Designed & 3D printed in Macedonia'
-            : 'Дизајнирано и 3D печатено во Македонија'}
+            ? '3D printed with care in Macedonia'
+            : '3D печатено со внимание во Македонија'}
         </span>
         <span>{copy.cod}</span>
       </div>

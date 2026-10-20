@@ -64,8 +64,8 @@ export default async function Home() {
         <div className="hero-copy">
           <p className="eyebrow">
             {en
-              ? 'Independent design. Made in Macedonia.'
-              : 'Оригинален дизајн. Создадено во Македонија.'}
+              ? 'Made with care. 3D printed in Macedonia.'
+              : 'Изработено со внимание. 3D печатено во Македонија.'}
           </p>
           <h1>
             {settings.tagline === 'BRINGING IDEAS TO LIFE' ? (
@@ -80,8 +80,8 @@ export default async function Home() {
           </h1>
           <p className="hero-description">
             {en
-              ? 'Thoughtfully designed, locally 3D printed. Find something for your space, or let’s make it yours.'
-              : 'Внимателно дизајнирано, локално 3D печатено. Пронајди нешто за твојот простор, или создај нешто по свое.'}
+              ? 'Carefully made with 3D printing. Find something for your space, or let’s make it yours.'
+              : 'Внимателно изработено со 3D печатење. Пронајди нешто за твојот простор, или создај нешто по свое.'}
           </p>
           <div className="hero-buttons">
             <Link href="/shop" className="button">
@@ -135,7 +135,7 @@ export default async function Home() {
       <div className="benefit-strip">
         <span>
           <Layers3 />
-          {en ? 'Designed & made locally' : 'Локален дизајн и изработка'}
+          {en ? 'Locally 3D printed' : 'Локално 3D печатено'}
         </span>
         <span>
           <PenTool />

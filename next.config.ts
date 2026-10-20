@@ -2,6 +2,11 @@ import type { NextConfig } from 'next';
 const config: NextConfig = {
   poweredByHeader: false,
   devIndicators: false,
+  experimental: {
+    // Shared hosting can expose more CPUs than its process/thread quota allows.
+    cpus: 1,
+    staticGenerationMaxConcurrency: 1,
+  },
   serverExternalPackages: ['@prisma/client', 'sharp'],
   images: {
     remotePatterns: process.env.MEDIA_BASE_URL

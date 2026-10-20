@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build --webpack",
+    "build": "node scripts/build.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
@@ -15,7 +15,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "admin:create": "tsx scripts/create-admin.ts",
-    "deploy:build": "prisma migrate deploy && tsx scripts/bootstrap.ts && npm run build",
+    "deploy:build": "node scripts/build.mjs --deploy",
     "test:integration": "node --import tsx --test tests/integration/*.test.ts",
     "format": "prettier --write src tests scripts prisma/seed.ts *.json *.ts *.mjs *.md docs",
     "maintenance": "node --import tsx scripts/maintenance.ts",

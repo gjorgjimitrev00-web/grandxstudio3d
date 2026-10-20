@@ -9,7 +9,13 @@ export function Logo({ name = 'GrandXStudio' }: { name?: string }) {
   if (name !== 'GrandXStudio') return <span className="logo">{name}</span>;
   return (
     <span className="logo">
-      Grand<span className="brand-x">X</span>Studio
+      <img
+        className="logo-image"
+        src="/images/grandxstudio-logo.png"
+        alt="GrandXStudio"
+        width={2337}
+        height={445}
+      />
     </span>
   );
 }

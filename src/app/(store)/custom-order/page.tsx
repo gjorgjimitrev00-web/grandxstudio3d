@@ -1,8 +1,9 @@
-import { getCopy } from '@/lib/i18n';
+import Image from 'next/image';
+import { getCopy, getLocale } from '@/lib/i18n';
 import { ApiForm } from '@/components/api-form';
 export const metadata = { title: 'Custom 3D print', alternates: { canonical: '/custom-order' } };
 export default async function CustomOrder() {
-  const copy = await getCopy();
+  const [copy, locale] = await Promise.all([getCopy(), getLocale()]);
   return (
     <div className="page">
       <div className="custom-page">
@@ -10,7 +11,18 @@ export default async function CustomOrder() {
           <p className="eyebrow orange">MADE FOR YOU. FROM THE FIRST LAYER.</p>
           <h1 className="page-title">{copy.customTitle}</h1>
           <p className="page-intro">{copy.customText}</p>
-          <img className="custom-page-image" src="/images/hero.webp" alt="3D печатени предмети" />
+          <Image
+            className="custom-page-image"
+            src="/images/custom-order-studio-2026.webp"
+            width={1536}
+            height={1024}
+            sizes="(max-width: 600px) 90vw, (max-width: 1400px) 45vw, 610px"
+            alt={
+              locale === 'en'
+                ? 'Our green vase, armchair phone holder and pink LED candle holder beside material colour samples'
+                : 'Нашата зелена вазна, држач за телефон во форма на фотелја и розов LED држач покрај примероци на бои'
+            }
+          />
           <div className="process-steps">
             <p>
               <b>01</b> Сподели ја идејата

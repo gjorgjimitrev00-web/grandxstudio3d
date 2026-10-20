@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getSettings } from '@/lib/settings';
 import { getLocale } from '@/lib/i18n';
@@ -23,10 +24,17 @@ export default async function ContentPage({ params }: { params: Promise<{ page: 
         <p className="eyebrow orange">GRANDXSTUDIO</p>
         <h1 className="page-title">{titles[page]}</h1>
         {page === 'about' && (
-          <img
+          <Image
             className="about-image"
-            src="/images/hero.webp"
-            alt="GrandXStudio design collection"
+            src="/images/about-studio-2026.webp"
+            width={1672}
+            height={941}
+            sizes="(max-width: 900px) 90vw, 800px"
+            alt={
+              locale === 'en'
+                ? 'GrandXStudio 3D printed collection: white spiral lamp, red vase, green phone holder and pink LED candle holder'
+                : '3D печатена колекција на GrandXStudio: бела спирална ламба, црвена вазна, зелен држач за телефон и розов LED држач'
+            }
           />
         )}
         <div>{s[page]}</div>

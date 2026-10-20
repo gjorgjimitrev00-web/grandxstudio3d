@@ -1,0 +1,24 @@
+{
+  "mode": "Built-in image_gen",
+  "assets": [
+    {
+      "key": "customPageArtwork",
+      "prompt": "Use case: product-mockup\nAsset type: premium website photograph for the custom 3D printing page \"По твоја мерка\" of GrandXStudio. Landscape 3:2 composition.\nInput images: image 1 is the exact existing olive green miniature armchair PHONE HOLDER; image 2 is the exact pink ribbed LED candle holder with its electric tea light; image 3 is the exact olive green three-lobed ribbed vase. Preserve the identity, proportions, silhouettes, grooves and material colors of all three objects.\nScene: a beautifully restrained maker's workbench in a bright small 3D printing studio. Arrange these three finished real products on a pale oak worktop: the vase slightly back, the phone holder at front left, the pink LED holder at front right. The phone holder is palm-sized and smaller than the vase. The LED holder retains its softly illuminated artificial flame. Vase is EMPTY. A few small unbranded material color swatch chips in warm orange #FE7F2D, ivory and olive sit naturally beside them; one subtle orange filament spool softly out of focus at the rear suggests material choice and customization.\nStyle: sophisticated editorial product photography, realistic visible FDM layers and delicate ribbed textures, tactile matte PLA rather than ceramic, beautiful soft daylight from the left, cream plaster wall, gentle natural shadows, minimal art direction.\nComposition: all products fully visible, well separated, cluster within middle 75% of frame with 12% clear space around edges, camera at a slightly elevated three-quarter angle. Balanced for display at 560 px wide on a website. Warm orange is an accent, preserve the actual products' colors. No people, no text, no lettering, no logos, no watermark, no sketches implying original design authorship, no Christmas objects. Do not invent or redesign a product.",
+      "referenceImages": [
+        "/Users/gjorgjimitrev/Desktop/grandxstudio3dweb/product-assets/home-collection-2026-10/drzac-za-telefon-fotelja/original.jpg",
+        "/Users/gjorgjimitrev/Desktop/grandxstudio3dweb/product-assets/home-collection-2026-10/rozov-drzac-so-led-svekja/original.jpg",
+        "/Users/gjorgjimitrev/Desktop/grandxstudio3dweb/product-assets/home-collection-2026-10/maslinesta-vazna-tri-nivoa/original.jpg"
+      ]
+    },
+    {
+      "key": "aboutPageArtwork",
+      "prompt": "Use case: product-mockup\nAsset type: editorial product photograph for GrandXStudio's About page. Wide landscape 16:9 image.\nInput images: image 1 is a reference composition showing the studio's actual four products: a softly glowing white spiral-ribbed table lamp, an EMPTY red spiral vase, a miniature olive green armchair PHONE HOLDER and a small pink ribbed holder with LED tea light. Images 2, 3 and 4 are individual source photos to preserve the exact lamp, phone holder and LED holder details. Make a NEW distinct composition of these same four products, with accurate silhouettes, colors, material textures and relative sizes.\nScene: warm minimal still-life collection on a pale limestone console and two very low simple ivory display risers against a softly lit warm-white plaster background. White spiral lamp toward left, red vase slightly back at center-right, miniature olive armchair phone holder in front and pink LED candle holder on the right. The lamps are gently on, the vase empty. A low muted peach-orange plinth subtly echoes the website accent #FE7F2D without recoloring the products. Soft late-afternoon window light makes gentle diagonal shadows.\nStyle: refined contemporary product photography for a small artisan 3D printing business, honest tactile FDM layer lines, matte plastic, restrained airy editorial look. Natural scale, no exaggeration, no ceramic replacement. Show everyday warmth and carefully printed objects, not a factory or claims about original designers.\nComposition: all objects fully in frame with room above, generous margin around the group and strong visual balance; suitable as a broad banner. Keep important objects in the central 80% so they read clearly on mobile too. No flowers, no Christmas products, no people, no text, no logos, no watermarks, no product redesigns.",
+      "referenceImages": [
+        "/Users/gjorgjimitrev/Desktop/grandxstudio3dweb/public/images/studio-objects-2026.webp",
+        "/Users/gjorgjimitrev/Desktop/grandxstudio3dweb/product-assets/home-collection-2026-10/bela-spiralna-stolna-lamba/original.jpg",
+        "/Users/gjorgjimitrev/Desktop/grandxstudio3dweb/product-assets/home-collection-2026-10/drzac-za-telefon-fotelja/original.jpg",
+        "/Users/gjorgjimitrev/Desktop/grandxstudio3dweb/product-assets/home-collection-2026-10/rozov-drzac-so-led-svekja/original.jpg"
+      ]
+    }
+  ]
+}

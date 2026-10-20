@@ -8,6 +8,7 @@ A full-stack Next.js App Router storefront and studio dashboard for a North Mace
 - Product galleries with zoom, colour choices, relational variants, personalized text, stock modes, specifications, related products, and product metadata/structured data.
 - Local cart, drawer, guest checkout, live server quote, unique sequential order numbers, private confirmation pages, and optional customer accounts with saved address, order history, password change.
 - Server-authorized admin: dashboard, products, variants/options, image upload/order/alt text, categories, orders/status timeline, customer history, private custom-print files, messages, newsletter and settings.
+- [Visitors and manual orders](docs/VISITORS-AND-MANUAL-ORDERS.md): daily visitor estimates with Macedonian city breakdown, tracking controls, in-person sales, agreed prices and paid-revenue reporting.
 - Atomic order placement, conditional stock decrements, idempotent submissions, cancellation stock restoration, database-backed rate limits, hashed expiring sessions, origin checks, Zod validation and bounded uploads.
 - An HMAC-authenticated PHP media bridge for a **separate Hostinger PHP website**. Public images are decoded and optimized to WebP; private design files are served through authenticated admin downloads.
 

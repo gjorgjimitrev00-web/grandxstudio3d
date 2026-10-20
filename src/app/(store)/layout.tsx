@@ -7,6 +7,7 @@ import { LiveChat } from '@/components/live-chat';
 import { getBlackFriday } from '@/lib/campaigns';
 import { campaignStatus } from '@/lib/campaign-rules';
 import { CampaignRefresh } from '@/components/campaign-refresh';
+import { VisitorTracker } from '@/components/visitor-tracker';
 export const dynamic = 'force-dynamic';
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const [copy, locale, s, campaign] = await Promise.all([
@@ -95,6 +96,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
         </div>
       </footer>
       {s.chatEnabled !== 'false' && <LiveChat locale={locale} />}
+      <VisitorTracker enabled={s.analyticsEnabled !== 'false'} />
     </CartProvider>
   );
 }

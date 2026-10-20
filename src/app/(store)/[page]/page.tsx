@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getSettings } from '@/lib/settings';
+import { getLocale } from '@/lib/i18n';
+import { AnalyticsPrivacy } from '@/components/visitor-tracker';
 const titles: Record<string, string> = {
   about: 'За нас / About',
   terms: 'Услови за користење / Terms',
@@ -14,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ page: str
 export default async function ContentPage({ params }: { params: Promise<{ page: string }> }) {
   const { page } = await params;
   if (!titles[page]) notFound();
-  const s = await getSettings();
+  const [s, locale] = await Promise.all([getSettings(), getLocale()]);
   return (
     <div className="page">
       <div className="legal">
@@ -28,6 +30,9 @@ export default async function ContentPage({ params }: { params: Promise<{ page: 
           />
         )}
         <div>{s[page]}</div>
+        {page === 'privacy' && (
+          <AnalyticsPrivacy locale={locale} enabled={s.analyticsEnabled !== 'false'} />
+        )}
       </div>
     </div>
   );

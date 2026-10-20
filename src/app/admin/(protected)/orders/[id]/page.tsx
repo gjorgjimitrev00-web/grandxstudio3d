@@ -6,6 +6,7 @@ import { AdminHeading } from '@/components/admin-shared';
 import { StatusForm } from '@/components/admin-forms';
 import { statusTransitions } from '@/lib/checkout';
 import { OrderRewardsControls } from '@/components/rewards-admin-forms';
+import { paymentLabels } from '@/lib/manual-order-rules';
 export default async function OrderDetails({ params }: { params: Promise<{ id: string }> }) {
   await requireAdminPage();
   const o = await db.order.findUnique({
@@ -13,6 +14,7 @@ export default async function OrderDetails({ params }: { params: Promise<{ id: s
     include: {
       items: { include: { selections: true } },
       history: { orderBy: { createdAt: 'asc' } },
+      enteredBy: { select: { name: true } },
     },
   });
   if (!o) notFound();
@@ -20,7 +22,7 @@ export default async function OrderDetails({ params }: { params: Promise<{ id: s
     <>
       <AdminHeading
         title={o.number}
-        sub={`${o.createdAt.toLocaleString('mk-MK', { timeZone: 'Europe/Skopje' })} · Cash on Delivery`}
+        sub={`${o.orderedAt.toLocaleDateString('mk-MK', { timeZone: 'Europe/Skopje' })} · ${o.source === 'MANUAL' ? 'Manual / in-person order' : 'Website order'} · ${paymentLabels[o.paymentMethod] || o.paymentMethod}`}
       />
       <div className="two-column">
         <div className="stack">
@@ -46,7 +48,9 @@ export default async function OrderDetails({ params }: { params: Promise<{ id: s
                   ))}
                   {i.madeToOrder && (
                     <span className="status-pill production-pill">
-                      MADE TO ORDER — PRODUCTION REQUIRED
+                      {o.status === 'DELIVERED'
+                        ? 'MADE TO ORDER'
+                        : 'MADE TO ORDER — PRODUCTION REQUIRED'}
                     </span>
                   )}
                 </div>
@@ -81,7 +85,7 @@ export default async function OrderDetails({ params }: { params: Promise<{ id: s
                 {o.firstName} {o.lastName}
               </b>
               <br />
-              <a href={`tel:${o.phone}`}>{o.phone}</a>
+              {o.phone && <a href={`tel:${o.phone}`}>{o.phone}</a>}
               <br />
               {o.email}
               <br />
@@ -91,6 +95,13 @@ export default async function OrderDetails({ params }: { params: Promise<{ id: s
               <br />
               {o.country}
             </p>
+            {o.source === 'MANUAL' && (
+              <p className="form-note">
+                Entered {o.createdAt.toLocaleString('mk-MK', { timeZone: 'Europe/Skopje' })}
+                {o.enteredBy ? ` by ${o.enteredBy.name}` : ''}. Sale date may differ from the entry
+                date.
+              </p>
+            )}
             {o.notes && (
               <div className="notice editor-section">
                 <b>Customer notes</b>
@@ -101,12 +112,21 @@ export default async function OrderDetails({ params }: { params: Promise<{ id: s
         </div>
         <div className="stack">
           <section className="panel">
-            <h2>Payment & rewards</h2>
-            <p>
-              {o.pointsCredited} points credited · {o.pointsEarned} originally earned
-            </p>
+            <h2>{o.source === 'MANUAL' ? 'Payment & refunds' : 'Payment & rewards'}</h2>
+            {o.source !== 'MANUAL' && (
+              <p>
+                {o.pointsCredited} points credited · {o.pointsEarned} originally earned
+              </p>
+            )}
+            {o.paidAt && (
+              <p className="form-note">
+                Payment recorded for{' '}
+                {o.paidAt.toLocaleDateString('mk-MK', { timeZone: 'Europe/Skopje' })}.
+              </p>
+            )}
             {o.refundedProducts > 0 && <p>Product refunds recorded: {money(o.refundedProducts)}</p>}
             <OrderRewardsControls
+              hasRewards={!!o.rewardsUserId}
               order={{
                 id: o.id,
                 status: o.status,

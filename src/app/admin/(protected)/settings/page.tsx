@@ -8,7 +8,10 @@ export default async function Settings() {
   await requireAdminPage();
   const [s, methods] = await Promise.all([
     getSettings(),
-    db.shippingMethod.findMany({ orderBy: { createdAt: 'asc' } }),
+    db.shippingMethod.findMany({
+      where: { id: { notIn: ['manual-handover', 'manual-delivery'] } },
+      orderBy: { createdAt: 'asc' },
+    }),
   ]);
   return (
     <>

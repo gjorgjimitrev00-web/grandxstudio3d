@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import {
   LayoutDashboard,
+  ChartNoAxesCombined,
   Package,
   Tags,
   ShoppingBag,
@@ -25,6 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user || user.role !== 'ADMIN') redirect('/admin/login');
   const nav = [
     ['/admin', 'Overview', LayoutDashboard],
+    ['/admin/analytics', 'Visitors', ChartNoAxesCombined],
     ['/admin/products', 'Products', Package],
     ['/admin/categories', 'Categories', Tags],
     ['/admin/campaigns', 'Кампањи / Black Friday', CalendarDays],
@@ -66,7 +68,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="admin-main">
         <header className="admin-topbar">
           <span>GrandXStudio / Studio dashboard</span>
-          <span className="status-pill">CASH ON DELIVERY · MKD</span>
+          <span className="status-pill">ONLINE & IN-PERSON · MKD</span>
         </header>
         <main>{children}</main>
       </div>

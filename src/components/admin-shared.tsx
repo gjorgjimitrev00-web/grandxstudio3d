@@ -59,6 +59,9 @@ export function OrdersTable({
     lastName: string;
     phone: string;
     createdAt: Date;
+    orderedAt?: Date;
+    source?: string;
+    paidAt?: Date | null;
     total: number;
     status: string;
   }[];
@@ -74,6 +77,8 @@ export function OrdersTable({
             <th>Date</th>
             <th>Total</th>
             <th>Status</th>
+            <th>Source</th>
+            <th>Payment</th>
           </tr>
         </thead>
         <tbody>
@@ -87,14 +92,20 @@ export function OrdersTable({
               <td>
                 {o.firstName} {o.lastName}
               </td>
-              <td>{o.phone}</td>
-              <td>{o.createdAt.toLocaleDateString('mk-MK', { timeZone: 'Europe/Skopje' })}</td>
+              <td>{o.phone || '—'}</td>
+              <td>
+                {(o.orderedAt || o.createdAt).toLocaleDateString('mk-MK', {
+                  timeZone: 'Europe/Skopje',
+                })}
+              </td>
               <td>{money(o.total)}</td>
               <td>
                 <span className={`status-pill status-${o.status.toLowerCase()}`}>
                   {o.status.replaceAll('_', ' ')}
                 </span>
               </td>
+              <td>{o.source === 'MANUAL' ? 'Manual' : 'Website'}</td>
+              <td>{o.paidAt ? 'Paid' : 'Unpaid'}</td>
             </tr>
           ))}
         </tbody>

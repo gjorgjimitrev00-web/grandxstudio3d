@@ -1,18 +1,19 @@
-import { reportingPeriods } from '@/lib/time';
+import { reportingPeriods, studioDay } from '@/lib/time';
 import { requireAdminPage } from '@/lib/admin-access';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { money } from '@/lib/utils';
 import { AdminHeading, OrdersTable } from '@/components/admin-shared';
+import { paidRevenue } from '@/lib/revenue';
 export default async function Dashboard() {
   await requireAdminPage();
   const { today, month } = reportingPeriods();
   const [
     ordersToday,
     ordersMonth,
-    revenueToday,
-    revenueMonth,
     revenue,
+    visitors,
+    mkVisitors,
     statuses,
     products,
     customers,
@@ -20,20 +21,11 @@ export default async function Dashboard() {
     recent,
     lowStock,
   ] = await Promise.all([
-    db.order.count({ where: { createdAt: { gte: today } } }),
-    db.order.count({ where: { createdAt: { gte: month } } }),
-    db.order.aggregate({
-      _sum: { total: true, refundedProducts: true },
-      where: { status: 'DELIVERED', deliveredAt: { gte: today } },
-    }),
-    db.order.aggregate({
-      _sum: { total: true, refundedProducts: true },
-      where: { status: 'DELIVERED', deliveredAt: { gte: month } },
-    }),
-    db.order.aggregate({
-      _sum: { total: true, refundedProducts: true },
-      where: { status: 'DELIVERED' },
-    }),
+    db.order.count({ where: { orderedAt: { gte: today } } }),
+    db.order.count({ where: { orderedAt: { gte: month } } }),
+    paidRevenue(),
+    db.visitorDay.count({ where: { day: studioDay() } }),
+    db.visitorDay.count({ where: { day: studioDay(), country: 'MK' } }),
     db.order.groupBy({ by: ['status'], _count: true }),
     db.product.count(),
     db.customer.count(),
@@ -51,26 +43,24 @@ export default async function Dashboard() {
         title="Your studio, at a glance."
         sub="Orders, production, and the things that need your attention."
       >
-        <Link className="button" href="/admin/products/new">
-          Add product +
-        </Link>
+        <div className="row">
+          <Link className="button outline" href="/admin/products/new">
+            Add product +
+          </Link>
+          <Link className="button" href="/admin/orders/new">
+            Add order +
+          </Link>
+        </div>
       </AdminHeading>
       <div className="stats-grid">
         {[
           ['Orders today', String(ordersToday)],
           ['Orders this month', String(ordersMonth)],
-          [
-            'Delivered value today',
-            money((revenueToday._sum.total || 0) - (revenueToday._sum.refundedProducts || 0)),
-          ],
-          [
-            'Delivered value this month',
-            money((revenueMonth._sum.total || 0) - (revenueMonth._sum.refundedProducts || 0)),
-          ],
-          [
-            'Total delivered value',
-            money((revenue._sum.total || 0) - (revenue._sum.refundedProducts || 0)),
-          ],
+          ['Paid revenue today', money(revenue.today)],
+          ['Paid revenue this month', money(revenue.month)],
+          ['Total paid revenue', money(revenue.total)],
+          ['Visitors today · estimated', String(visitors)],
+          ['Visitors from North Macedonia', String(mkVisitors)],
           ['Products', String(products)],
           ['Low stock products', String(lowStock[0].total)],
           ['Customers', String(customers)],
@@ -82,10 +72,22 @@ export default async function Dashboard() {
         ))}
       </div>
       <p className="form-note">
-        Delivered order value after reward discounts and recorded product refunds, including
-        delivery. Payment confirmation is tracked per order. Dates use Europe/Skopje and the
-        original delivery date.
+        Paid revenue includes completed orders with confirmed payment, after discounts and recorded
+        product refunds, including delivery. Dates use Europe/Skopje and the recorded payment date.
+        Backdated paid manual sales use the selected sale date; later refunds reduce that original
+        period. Unconfirmed payments are excluded.
       </p>
+      <div className="row between admin-section">
+        <p>
+          Paid this month: website{' '}
+          <b>{money(revenue.sources.find((row) => row.source === 'ONLINE')?.revenue || 0)}</b>
+          {' · '}manual / in person{' '}
+          <b>{money(revenue.sources.find((row) => row.source === 'MANUAL')?.revenue || 0)}</b>
+        </p>
+        <Link className="text-link" href="/admin/analytics">
+          Visitors by city ↗
+        </Link>
+      </div>
       <div className="admin-section">
         <h2>Order pipeline</h2>
         <div className="pipeline">

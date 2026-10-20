@@ -158,7 +158,9 @@ export function PointsAdjustmentForm({ userId }: { userId: string }) {
 
 export function OrderRewardsControls({
   order,
+  hasRewards = true,
 }: {
+  hasRewards?: boolean;
   order: {
     id: string;
     status: string;
@@ -173,26 +175,32 @@ export function OrderRewardsControls({
   if (order.status !== 'DELIVERED')
     return (
       <p className="form-note">
-        Mark the order delivered before confirming cash payment and releasing points.
+        Mark the order delivered before confirming payment
+        {hasRewards ? ' and releasing points' : ''}.
       </p>
     );
   if (!order.paid)
     return (
       <ActionButton
         endpoint={`/api/admin/rewards/${order.id}/payment`}
-        confirm="Confirm you have received the cash payment? This releases the customer's earned points."
+        confirm={`Confirm you have received this payment?${hasRewards ? " This releases the customer's earned points." : ' The sale will count toward paid revenue.'}`}
       >
-        Confirm cash payment received
+        Confirm payment received
       </ActionButton>
     );
   return (
     <div className="stack">
-      <p className="success-text">Payment confirmed. Earned points have been released.</p>
+      <p className="success-text">
+        Payment confirmed.
+        {hasRewards
+          ? ' Earned points have been released.'
+          : ' This sale is included in paid revenue.'}
+      </p>
       <details>
         <summary>Record a return / refund</summary>
         <ApiForm
           endpoint={`/api/admin/rewards/${order.id}/return`}
-          submit="Record return and adjust points"
+          submit={hasRewards ? 'Record return and adjust points' : 'Record product refund'}
           refresh
           transform={(v) => ({
             refundedProducts: Number(v.refundedProducts),

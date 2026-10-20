@@ -20,7 +20,7 @@ export async function confirmOrderPayment(id: string, actorId: string) {
         history: {
           create: {
             status: order.status,
-            note: 'Cash payment confirmed by administrator.',
+            note: `Payment confirmed by administrator (${actorId}); method: ${order.paymentMethod}.`,
           },
         },
       },

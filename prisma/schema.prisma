@@ -28,6 +28,11 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum OrderSource {
+  ONLINE
+  MANUAL
+}
+
 enum RequestStatus {
   NEW
   REVIEWING
@@ -60,6 +65,7 @@ model User {
   chatPresence   ChatPresence?
   rewardsAccount RewardsAccount?
   rewardsOrders  Order[]         @relation("RewardsOwner")
+  enteredOrders  Order[]         @relation("OrderEnteredBy")
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
@@ -259,6 +265,11 @@ model Order {
   number           String               @unique @db.VarChar(40)
   accessTokenHash  String               @db.Char(64)
   idempotencyKey   String               @unique @db.VarChar(191)
+  source           OrderSource          @default(ONLINE)
+  orderedAt        DateTime             @default(now())
+  enteredById      String?
+  enteredBy        User?                @relation("OrderEnteredBy", fields: [enteredById], references: [id], onDelete: SetNull)
+  entryFingerprint String?              @db.Char(64)
   customerId       String
   customer         Customer             @relation(fields: [customerId], references: [id])
   firstName        String
@@ -304,6 +315,22 @@ model Order {
   @@index([rewardsUserId, status])
   @@index([deliveredAt])
   @@index([createdAt])
+  @@index([orderedAt])
+  @@index([source, orderedAt])
+  @@index([paidAt])
+}
+
+model VisitorDay {
+  id          String   @id @default(cuid())
+  day         String   @db.Char(10)
+  visitorHash String   @db.Char(64)
+  country     String   @default("") @db.VarChar(2)
+  city        String   @default("") @db.VarChar(120)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@unique([day, visitorHash])
+  @@index([day, country, city])
 }
 
 model OrderItem {

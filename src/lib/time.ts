@@ -44,3 +44,36 @@ export function reportingPeriods(now = new Date()) {
     month: skopjeMidnight(Number(p.year), Number(p.month), 1),
   };
 }
+
+/** ISO calendar key for the studio's local day, independent of the server timezone. */
+export function studioDay(now = new Date()) {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Skopje',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .formatToParts(now)
+      .map((part) => [part.type, part.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+export function validDay(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function shiftDay(day: string, amount: number) {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
+}
+
+export function studioDayStart(day: string) {
+  if (!validDay(day)) throw new Error('Invalid calendar date.');
+  const [year, month, date] = day.split('-').map(Number);
+  return skopjeMidnight(year, month, date);
+}

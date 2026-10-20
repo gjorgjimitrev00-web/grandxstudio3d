@@ -1,5 +1,6 @@
 import { requireAdminPage } from '@/lib/admin-access';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderSource, OrderStatus, Prisma } from '@prisma/client';
+import Link from 'next/link';
 import { db } from '@/lib/db';
 import { AdminHeading, OrdersTable, Pager } from '@/components/admin-shared';
 export default async function Orders({
@@ -13,8 +14,12 @@ export default async function Orders({
   const status = Object.values(OrderStatus).includes(p.status as OrderStatus)
     ? (p.status as OrderStatus)
     : undefined;
+  const source = Object.values(OrderSource).includes(p.source as OrderSource)
+    ? (p.source as OrderSource)
+    : undefined;
   const where: Prisma.OrderWhereInput = {
     status,
+    source,
     ...(p.q
       ? {
           OR: [
@@ -26,12 +31,21 @@ export default async function Orders({
       : {}),
   };
   const [orders, count] = await Promise.all([
-    db.order.findMany({ where, take: 20, skip: (page - 1) * 20, orderBy: { createdAt: 'desc' } }),
+    db.order.findMany({
+      where,
+      take: 20,
+      skip: (page - 1) * 20,
+      orderBy: [{ orderedAt: 'desc' }, { createdAt: 'desc' }],
+    }),
     db.order.count({ where }),
   ]);
   return (
     <>
-      <AdminHeading title="Orders" sub="From the first idea to the customer’s door." />
+      <AdminHeading title="Orders" sub="Website orders and sales recorded in person.">
+        <Link className="button" href="/admin/orders/new">
+          Add order +
+        </Link>
+      </AdminHeading>
       <form className="admin-search">
         <input
           name="q"
@@ -47,6 +61,11 @@ export default async function Orders({
             </option>
           ))}
         </select>
+        <select name="source" defaultValue={source || ''} aria-label="Filter by source">
+          <option value="">All sources</option>
+          <option value="ONLINE">Website</option>
+          <option value="MANUAL">Manual / in person</option>
+        </select>
         <button className="button outline">Filter</button>
       </form>
       <OrdersTable orders={orders} />
@@ -54,7 +73,7 @@ export default async function Orders({
         page={page}
         count={count}
         path="/admin/orders"
-        query={`&status=${status || ''}&q=${encodeURIComponent(p.q || '')}`}
+        query={`&status=${status || ''}&source=${source || ''}&q=${encodeURIComponent(p.q || '')}`}
       />
     </>
   );

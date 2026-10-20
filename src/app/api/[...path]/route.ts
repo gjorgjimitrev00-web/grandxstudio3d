@@ -22,6 +22,9 @@ import { createOrder, quoteCart } from '@/lib/checkout';
 import { rewardSelectionSchema } from '@/lib/rewards-rules';
 import { adminRequest } from '@/lib/admin';
 import { storePrivateFile, deleteFile, getFile } from '@/lib/storage';
+import { storefrontProductWhere } from '@/lib/catalog-visibility';
+import { getBlackFriday } from '@/lib/campaigns';
+import { withCampaign } from '@/lib/campaign-rules';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ path: string[] }> };
@@ -33,15 +36,18 @@ async function handler(request: Request, context: Context) {
     if (method !== 'GET') originCheck(request);
     if (path[0] === 'catalog' && path.length === 2 && method === 'GET') {
       const product = await db.product.findFirst({
-        where: { id: path[1], published: true },
+        where: { id: path[1], ...storefrontProductWhere },
         include: {
+          categories: { select: { categoryId: true } },
           images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }], take: 1 },
           options: { include: { values: true } },
           variants: { include: { values: { include: { value: true } } } },
         },
       });
       if (!product) throw new HttpError(404, 'Product not found.');
-      return Response.json(product, { headers: { 'Cache-Control': 'no-store' } });
+      const { categories, ...priced } = withCampaign(product, await getBlackFriday());
+      void categories;
+      return Response.json(priced, { headers: { 'Cache-Control': 'no-store' } });
     }
     if (path[0] === 'admin') {
       await requireAdmin();

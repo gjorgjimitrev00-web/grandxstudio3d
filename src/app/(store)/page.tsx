@@ -8,6 +8,9 @@ import { ProductCard } from '@/components/product-card';
 import { Newsletter } from '@/components/newsletter';
 import { selectStudioProducts } from '@/lib/studio-products';
 import type { Prisma } from '@prisma/client';
+import { CHRISTMAS_CATEGORY_SLUG, storefrontProductWhere } from '@/lib/catalog-visibility';
+import { getBlackFriday } from '@/lib/campaigns';
+import { withCampaign } from '@/lib/campaign-rules';
 
 const productInclude = {
   images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }], take: 1 },
@@ -16,12 +19,17 @@ const productInclude = {
 
 export const metadata = { alternates: { canonical: '/' } };
 export default async function Home() {
-  const [copy, locale, settings] = await Promise.all([getCopy(), getLocale(), getSettings()]);
+  const [copy, locale, settings, campaign] = await Promise.all([
+    getCopy(),
+    getLocale(),
+    getSettings(),
+    getBlackFriday(),
+  ]);
   const en = locale === 'en';
-  const [recentProducts, categories] = process.env.DATABASE_URL
+  const [recentProducts, categories, christmas] = process.env.DATABASE_URL
     ? await Promise.all([
         db.product.findMany({
-          where: { published: true },
+          where: storefrontProductWhere,
           include: productInclude,
           take: 8,
           orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
@@ -32,15 +40,20 @@ export default async function Home() {
           take: 8,
           include: {
             products: {
-              where: { product: { published: true } },
+              where: { product: storefrontProductWhere },
               orderBy: [{ product: { createdAt: 'desc' } }, { productId: 'asc' }],
               take: 2,
               include: { product: { include: productInclude } },
             },
           },
         }),
+        db.category.findUnique({
+          where: { slug: CHRISTMAS_CATEGORY_SLUG },
+          select: { enabled: true },
+        }),
       ])
-    : [[], []];
+    : [[], [], null];
+  const christmasEnabled = christmas?.enabled === true;
   const products = selectStudioProducts(
     categories.map((category) => category.products.map(({ product }) => product)),
     recentProducts,
@@ -83,20 +96,37 @@ export default async function Home() {
         </div>
         <div className="hero-visual">
           <Image
-            src="/images/christmas-collection-hero.webp"
+            src={
+              christmasEnabled
+                ? '/images/christmas-collection-hero.webp'
+                : '/images/studio-objects-2026.webp'
+            }
             alt={
-              en
-                ? 'Our 3D printed Christmas collection: Santa, a polar bear, a tree, a gnome, baubles, a bell and Santa hats'
-                : 'Нашата 3D печатена новогодишна колекција: Дедо Мраз, поларно мече, елка, гном, лампиони, ѕвонче и капчиња'
+              christmasEnabled
+                ? en
+                  ? 'Our 3D printed Christmas collection: Santa, a polar bear, a tree, a gnome, baubles, a bell and Santa hats'
+                  : 'Нашата 3D печатена новогодишна колекција: Дедо Мраз, поларно мече, елка, гном, лампиони, ѕвонче и капчиња'
+                : en
+                  ? 'Our lamp, vase, phone stand and LED candle holder'
+                  : 'Нашата ламба, вазна, држач за телефон и LED држач'
             }
             preload
-            width={1254}
-            height={1254}
+            width={christmasEnabled ? 1254 : 1448}
+            height={christmasEnabled ? 1254 : 1086}
             sizes="(max-width: 700px) 92vw, (min-width: 1500px) 620px, 46vw"
           />
-          <Link href="/shop?category=christmas-decorations" className="visual-label">
+          <Link
+            href={christmasEnabled ? `/shop?category=${CHRISTMAS_CATEGORY_SLUG}` : '/shop'}
+            className="visual-label"
+          >
             <span>
-              {en ? 'Explore the Christmas collection' : 'Откриј ја новогодишната колекција'}
+              {christmasEnabled
+                ? en
+                  ? 'Explore the Christmas collection'
+                  : 'Откриј ја новогодишната колекција'
+                : en
+                  ? 'Explore the collection'
+                  : 'Откриј ја колекцијата'}
             </span>
             <ArrowUpRight size={20} />
           </Link>
@@ -122,9 +152,13 @@ export default async function Home() {
             <p className="eyebrow">{en ? 'From the studio' : 'Од студиото'}</p>
             <h2>{copy.featured}</h2>
             <p className="muted">
-              {en
-                ? 'Lighting, vases, useful little objects and a touch of celebration.'
-                : 'Светло, вазни, практични мали предмети и малку празнична радост.'}
+              {christmasEnabled
+                ? en
+                  ? 'Lighting, vases, useful little objects and a touch of celebration.'
+                  : 'Светло, вазни, практични мали предмети и малку празнична радост.'
+                : en
+                  ? 'Lighting, vases and useful little objects for your space.'
+                  : 'Светло, вазни и практични мали предмети за твојот простор.'}
             </p>
           </div>
           <Link href="/shop" className="text-link">
@@ -134,7 +168,7 @@ export default async function Home() {
         </div>
         <div className="product-grid">
           {products.map((p) => (
-            <ProductCard key={p.id} product={p} copy={copy} />
+            <ProductCard key={p.id} product={withCampaign(p, campaign)} copy={copy} />
           ))}
         </div>
         {!products.length && (

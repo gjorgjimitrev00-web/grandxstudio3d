@@ -11,23 +11,31 @@ import {
   settleOrderRewards,
 } from './rewards';
 import { discountLimit, earnedPoints, type RewardSelection } from './rewards-rules';
+import { storefrontProductWhere } from './catalog-visibility';
+import { blackFridaySettings } from './campaigns';
+import { productPrice, withCampaign } from './campaign-rules';
 type Tx = Prisma.TransactionClient;
 async function quoteProducts(tx: Tx, items: z.infer<typeof cartSchema>, shippingMethodId: string) {
+  const campaign = await blackFridaySettings(tx);
+  const now = new Date();
   const products = await tx.product.findMany({
-    where: { id: { in: items.map((i) => i.productId) }, published: true },
+    where: { id: { in: items.map((i) => i.productId) }, ...storefrontProductWhere },
     include: {
+      categories: { select: { categoryId: true } },
       variants: { include: { values: { include: { value: { include: { option: true } } } } } },
       options: { include: { values: true } },
       images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }], take: 1 },
     },
   });
+  const pricedProducts = products.map((p) => withCampaign(p, campaign, now));
+  const blackFriday = pricedProducts.some((p) => p.blackFridayPercent > 0);
   const totals = new Map<string, number>();
   for (const item of items) {
     const key = `${item.productId}:${item.variantId || ''}`;
     totals.set(key, (totals.get(key) || 0) + item.quantity);
   }
   const lines = items.map((item) => {
-    const p = products.find((p) => p.id === item.productId);
+    const p = pricedProducts.find((p) => p.id === item.productId);
     if (!p) throw new HttpError(400, 'A product is no longer available.');
     if (p.inventoryMode === 'OUT_OF_STOCK') throw new HttpError(400, `${p.name}: out of stock.`);
     const v = item.variantId
@@ -38,7 +46,7 @@ async function quoteProducts(tx: Tx, items: z.infer<typeof cartSchema>, shipping
     const requested = totals.get(`${p.id}:${v?.id || ''}`)!;
     if (p.trackInventory && (v ? v.stock : p.stock) < requested)
       throw new HttpError(400, `${p.name}: insufficient stock.`);
-    const unitPrice = v?.price ?? (p.salePrice ?? p.price) + (v?.priceAdjustment ?? 0);
+    const unitPrice = productPrice(p, v).price;
     if (unitPrice < 0 || unitPrice > 10000000) throw new HttpError(400, 'Invalid product price.');
     const selections: { optionName: string; value: string }[] = [];
     for (const key of Object.keys(item.options))
@@ -82,7 +90,14 @@ async function quoteProducts(tx: Tx, items: z.infer<typeof cartSchema>, shipping
     (method.freeThreshold !== null && subtotal >= method.freeThreshold)
       ? 0
       : method.price;
-  return { lines, subtotal, shipping, total: subtotal + shipping, shippingName: method.name };
+  return {
+    lines,
+    subtotal,
+    shipping,
+    total: subtotal + shipping,
+    shippingName: method.name,
+    blackFriday,
+  };
 }
 export async function quoteCart(
   tx: Tx,
@@ -92,6 +107,11 @@ export async function quoteCart(
   selection: RewardSelection = { discountPoints: 0, giftId: '' },
 ) {
   const quote = await quoteProducts(tx, items, shippingMethodId);
+  if (quote.blackFriday && (selection.discountPoints || selection.giftId))
+    throw new HttpError(
+      400,
+      'Black Friday не се комбинира со поени или подароци. / Black Friday cannot be combined with points or reward gifts.',
+    );
   const settings = await rewardsSettings(tx);
   const account = userId ? await tx.rewardsAccount.findUnique({ where: { userId } }) : null;
   const balance = account?.balance || 0;
@@ -187,6 +207,11 @@ export async function createOrder(raw: unknown, userId?: string) {
       return existing;
     }
     const quote = await quoteCart(tx, input.items, input.shippingMethodId, userId, input.rewards);
+    if (input.expectedTotal !== undefined && input.expectedTotal !== quote.total)
+      throw new HttpError(
+        409,
+        'Цената или понудата е променета. Провери ја новата сума и потврди повторно. / Prices changed. Review the new total and confirm again.',
+      );
     for (const line of quote.lines) {
       if (!line.stockDeducted) continue;
       const result = line.variantId
@@ -225,10 +250,11 @@ export async function createOrder(raw: unknown, userId?: string) {
       update: { value: { increment: 1 } },
     });
     const number = `GX-${year}-${String(sequence.value).padStart(6, '0')}`;
-    const { items, idempotencyKey, acceptTerms, rewards, ...address } = input;
+    const { items, idempotencyKey, acceptTerms, rewards, expectedTotal, ...address } = input;
     void items;
     void acceptTerms;
     void rewards;
+    void expectedTotal;
     const created = await tx.order.create({
       data: {
         ...address,
@@ -251,7 +277,14 @@ export async function createOrder(raw: unknown, userId?: string) {
             selections: { create: selections },
           })),
         },
-        history: { create: { status: 'NEW', note: 'Cash on Delivery order received.' } },
+        history: {
+          create: {
+            status: 'NEW',
+            note: quote.blackFriday
+              ? 'Cash on Delivery order received. Black Friday pricing applied; rewards redemption excluded.'
+              : 'Cash on Delivery order received.',
+          },
+        },
       },
     });
     if (userId)

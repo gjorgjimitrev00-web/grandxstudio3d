@@ -1,11 +1,14 @@
 import type { MetadataRoute } from 'next';
 import { db } from '@/lib/db';
 import { siteUrl } from '@/lib/utils';
+import { storefrontProductWhere } from '@/lib/catalog-visibility';
+import { getBlackFriday } from '@/lib/campaigns';
+import { campaignStatus } from '@/lib/campaign-rules';
 export const dynamic = 'force-dynamic';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [products, categories] = await Promise.all([
+  const [products, categories, campaign] = await Promise.all([
     db.product.findMany({
-      where: { published: true },
+      where: storefrontProductWhere,
       select: { slug: true, updatedAt: true },
       take: 10000,
       orderBy: { id: 'asc' },
@@ -15,8 +18,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, updatedAt: true },
       take: 1000,
     }),
+    getBlackFriday(),
   ]);
   return [
+    ...(campaignStatus(campaign) === 'active' ? [{ url: siteUrl() + '/black-friday' }] : []),
     ...[
       '',
       '/shop',

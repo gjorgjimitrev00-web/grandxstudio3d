@@ -2,6 +2,7 @@ import { Prisma, type Order } from '@prisma/client';
 import { db } from './db';
 import { HttpError } from './security';
 import { defaultRewardsSettings, rewardsSettingsSchema, refundTargets } from './rewards-rules';
+import { storefrontProductWhere } from './catalog-visibility';
 
 type Tx = Prisma.TransactionClient;
 export async function rewardsSettings(tx: Tx = db) {
@@ -13,6 +14,7 @@ export const giftProductInclude = {
   images: { orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }], take: 1 },
   variants: { select: { id: true } },
   options: { select: { required: true } },
+  categories: { select: { category: { select: { enabled: true } } } },
 };
 export function eligibleGift(p: {
   published: boolean;
@@ -21,9 +23,11 @@ export function eligibleGift(p: {
   stock: number;
   variants: unknown[];
   options: { required: boolean }[];
+  categories?: { category: { enabled: boolean } }[];
 }) {
   return (
     p.published &&
+    !p.categories?.some(({ category }) => !category.enabled) &&
     p.inventoryMode !== 'OUT_OF_STOCK' &&
     (!p.trackInventory || p.stock > 0) &&
     p.variants.length === 0 &&
@@ -32,7 +36,7 @@ export function eligibleGift(p: {
 }
 export async function availableGifts(tx: Tx = db) {
   const gifts = await tx.rewardGift.findMany({
-    where: { enabled: true },
+    where: { enabled: true, product: storefrontProductWhere },
     include: { product: { include: giftProductInclude } },
     orderBy: [{ points: 'asc' }, { id: 'asc' }],
   });

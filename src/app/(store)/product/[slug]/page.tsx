@@ -7,9 +7,12 @@ import { ProductDetail } from '@/components/product-detail';
 import { ProductCard } from '@/components/product-card';
 import { safeJsonLd, siteUrl, serialize } from '@/lib/utils';
 import { rewardsSettings } from '@/lib/rewards';
+import { storefrontProductWhere } from '@/lib/catalog-visibility';
+import { getBlackFriday } from '@/lib/campaigns';
+import { productPrice, withCampaign } from '@/lib/campaign-rules';
 const getProduct = cache((slug: string) =>
   db.product.findFirst({
-    where: { slug, published: true },
+    where: { slug, ...storefrontProductWhere },
     include: {
       images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
       options: { orderBy: { sortOrder: 'asc' }, include: { values: true } },
@@ -21,7 +24,7 @@ const getProduct = cache((slug: string) =>
 );
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const p = await getProduct((await params).slug);
-  if (!p) return { title: 'Not found' };
+  if (!p) return { title: 'Not found', robots: { index: false, follow: false } };
   const image = p.images[0]?.url;
   return {
     title: p.seoTitle || p.name,
@@ -44,9 +47,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   if (!p) notFound();
   const copy = await getCopy();
   const rewards = await rewardsSettings();
+  const campaign = await getBlackFriday();
+  const priced = withCampaign(p, campaign);
   const related = await db.product.findMany({
     where: {
-      published: true,
+      AND: [storefrontProductWhere],
       id: { not: p.id },
       categories: { some: { categoryId: { in: p.categories.map((c) => c.categoryId) } } },
     },
@@ -62,7 +67,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       (p.variants.length ? p.variants.some((v) => v.enabled && v.stock > 0) : p.stock > 0));
   const offer = {
     priceCurrency: 'MKD',
-    price: p.salePrice ?? p.price,
+    price: productPrice(priced).price,
     availability: available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
     url: `${siteUrl()}/product/${p.slug}`,
   };
@@ -108,7 +113,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <span>/</span>
         <span>{p.name}</span>
       </div>
-      <ProductDetail product={serialize(p)} copy={copy} />
+      <ProductDetail product={serialize(priced)} copy={copy} />
       {rewards.enabled && (
         <p className="notice">
           <Link href="/rewards">GrandX Rewards ↗</Link> · 1 поен / point за / per{' '}
@@ -142,7 +147,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
           <div className="product-grid">
             {related.map((p) => (
-              <ProductCard key={p.id} product={p} copy={copy} />
+              <ProductCard key={p.id} product={withCampaign(p, campaign)} copy={copy} />
             ))}
           </div>
         </section>

@@ -3248,3 +3248,61 @@ select:focus {
     gap: 10px;
   }
 }
+.seasonal-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.seasonal-panel > div {
+  max-width: 720px;
+}
+.seasonal-panel button {
+  white-space: nowrap;
+}
+.campaign-choices {
+  display: grid;
+  gap: 12px;
+  max-height: 320px;
+  overflow: auto;
+  margin-top: 16px;
+  padding: 4px;
+}
+.campaign-choices .checkbox {
+  align-items: flex-start;
+}
+.campaign-banner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 28px;
+  padding: 14px 24px;
+  background: #202421;
+  color: #fff;
+  font-size: 13px;
+}
+.campaign-banner strong {
+  letter-spacing: 0.12em;
+}
+.campaign-banner span:last-child {
+  color: #d8eb8f;
+}
+.campaign-product-note {
+  color: #355235;
+  font-weight: 600;
+}
+@media (max-width: 700px) {
+  .seasonal-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .campaign-banner {
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    text-align: center;
+  }
+  .campaign-banner strong {
+    width: 100%;
+  }
+}

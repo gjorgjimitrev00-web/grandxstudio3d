@@ -1,16 +1,31 @@
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
-import { getCopy } from '@/lib/i18n';
+import { getCopy, getLocale } from '@/lib/i18n';
 import { ProductCard } from '@/components/product-card';
 import { ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { notFound } from 'next/navigation';
+import { storefrontProductSql, storefrontProductWhere } from '@/lib/catalog-visibility';
+import { getBlackFriday, campaignMatchSql, catalogPriceSql } from '@/lib/campaigns';
+import { campaignStatus, withCampaign } from '@/lib/campaign-rules';
 export async function generateMetadata({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const p = await searchParams;
-  const c = p.category ? await db.category.findUnique({ where: { slug: p.category } }) : null;
+  if (p.offer === 'black-friday')
+    return {
+      title: 'Black Friday',
+      description:
+        'Black Friday понуди од GrandXStudio. Избрани 3D печатени производи за твојот дом.',
+      alternates: { canonical: '/black-friday' },
+      robots: { index: campaignStatus(await getBlackFriday()) === 'active', follow: true },
+    };
+  const c = p.category
+    ? await db.category.findFirst({ where: { slug: p.category, enabled: true } })
+    : null;
+  if (p.category && !c) notFound();
   return {
     title: c?.name || 'Shop',
     description: c?.description || 'Explore GrandXStudio 3D printed products.',
@@ -23,20 +38,24 @@ export default async function Shop({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const p = await searchParams;
-  const copy = await getCopy();
+  const [copy, locale, campaign] = await Promise.all([getCopy(), getLocale(), getBlackFriday()]);
+  const en = locale === 'en';
+  const offerOnly = p.offer === 'black-friday';
+  const activeOffer = campaignStatus(campaign) === 'active';
+  const now = new Date();
   const page = Math.max(1, Math.min(10000, Number(p.page) || 1));
   const categories = await db.category.findMany({
     where: { enabled: true },
     orderBy: { sortOrder: 'asc' },
   });
   const selected = categories.find((c) => c.slug === p.category);
+  if (p.category && !selected) notFound();
   const q = typeof p.q === 'string' ? p.q.slice(0, 100) : '';
   const min = Math.max(0, Math.min(10000000, Number(p.min) || 0));
   const max = Math.max(min, Math.min(10000000, Number(p.max) || 10000000));
-  const parts = [
-    Prisma.sql`p.published = true`,
-    Prisma.sql`COALESCE(p.salePrice,p.price) BETWEEN ${min} AND ${max}`,
-  ];
+  const effectivePrice = catalogPriceSql(campaign, now);
+  const parts = [storefrontProductSql, Prisma.sql`${effectivePrice} BETWEEN ${min} AND ${max}`];
+  if (offerOnly) parts.push(campaignMatchSql(campaign, now));
   if (q)
     parts.push(
       Prisma.sql`(p.name LIKE ${'%' + q.replace(/[\\%_]/g, '\\$&') + '%'} OR p.shortDescription LIKE ${'%' + q.replace(/[\\%_]/g, '\\$&') + '%'})`,
@@ -52,9 +71,9 @@ export default async function Shop({
   const where = Prisma.join(parts, ' AND ');
   const sort =
     p.sort === 'price-asc'
-      ? Prisma.sql`COALESCE(p.salePrice,p.price) ASC`
+      ? Prisma.sql`${effectivePrice} ASC`
       : p.sort === 'price-desc'
-        ? Prisma.sql`COALESCE(p.salePrice,p.price) DESC`
+        ? Prisma.sql`${effectivePrice} DESC`
         : p.sort === 'popular'
           ? Prisma.sql`p.bestseller DESC,p.createdAt DESC`
           : Prisma.sql`p.createdAt DESC`;
@@ -68,13 +87,16 @@ export default async function Shop({
   ]);
   const count = Number(counts[0].total);
   const rows = await db.product.findMany({
-    where: { id: { in: ids.map((i) => i.id) } },
+    where: { id: { in: ids.map((i) => i.id) }, ...storefrontProductWhere },
     include: {
       images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }], take: 1 },
       categories: { include: { category: true } },
     },
   });
-  const products = ids.map(({ id }) => rows.find((p) => p.id === id)!);
+  const products = ids.flatMap(({ id }) => {
+    const product = rows.find((p) => p.id === id);
+    return product ? [withCampaign(product, campaign, now)] : [];
+  });
   function pageUrl(n: number) {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(p))
@@ -98,14 +120,41 @@ export default async function Shop({
       <div className="section-heading">
         <div>
           <p className="eyebrow">{copy.collection}</p>
-          <h1 className="page-title">{selected?.name || copy.shop}</h1>
-          <p className="muted">{copy.featuredSub}</p>
+          <h1 className="page-title">{offerOnly ? 'Black Friday' : selected?.name || copy.shop}</h1>
+          <p className="muted">
+            {offerOnly
+              ? activeOffer
+                ? en
+                  ? `Save ${campaign.discountPercent}% on selected products. A lower existing sale price is kept.`
+                  : `${campaign.discountPercent}% попуст на избрани производи. Постоечка пониска акциска цена се задржува.`
+                : en
+                  ? 'Black Friday is not active right now. Explore our full collection.'
+                  : 'Black Friday моментално не е активен. Разгледај ја целата колекција.'
+              : copy.featuredSub}
+          </p>
+          {offerOnly && activeOffer && (
+            <p className="small muted">
+              {en ? 'Through ' : 'До '}
+              {new Intl.DateTimeFormat(en ? 'en-GB' : 'mk-MK', { dateStyle: 'medium' }).format(
+                new Date(`${campaign.endsOn}T12:00:00Z`),
+              )}
+              {en
+                ? ', inclusive. Cannot be combined with points or reward gifts.'
+                : ', вклучително. Не се комбинира со поени или подароци.'}
+            </p>
+          )}
+          {offerOnly && (
+            <Link className="text-link" href="/shop">
+              {copy.all} ↗
+            </Link>
+          )}
         </div>
         <span className="small muted">
           {count} {copy.productsLabel}
         </span>
       </div>
       <form className="shop-filters">
+        {offerOnly && <input type="hidden" name="offer" value="black-friday" />}
         <div className="filter-main">
           <label>
             {copy.search}

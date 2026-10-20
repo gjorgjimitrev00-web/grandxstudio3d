@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import { db } from '@/lib/db';
+import { storefrontProductWhere } from '@/lib/catalog-visibility';
 import { getCopy } from '@/lib/i18n';
 export const metadata = { title: 'Categories', alternates: { canonical: '/categories' } };
 export default async function Categories() {
@@ -8,7 +9,7 @@ export default async function Categories() {
   const categories = await db.category.findMany({
     where: { enabled: true },
     orderBy: { sortOrder: 'asc' },
-    include: { _count: { select: { products: { where: { product: { published: true } } } } } },
+    include: { _count: { select: { products: { where: { product: storefrontProductWhere } } } } },
   });
   return (
     <div className="page">

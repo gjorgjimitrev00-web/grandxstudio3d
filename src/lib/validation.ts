@@ -26,6 +26,7 @@ export const cartSchema = z
   .min(1)
   .max(50);
 export const checkoutSchema = z.object({
+  expectedTotal: z.number().int().min(0).max(50000000000).optional(),
   rewards: rewardSelectionSchema.default({ discountPoints: 0, giftId: '' }),
   items: cartSchema,
   shippingMethodId: text(100),

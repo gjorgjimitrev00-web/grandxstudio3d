@@ -5,12 +5,14 @@ import { Plus, Minus, ArrowUpRight, Truck, PackageCheck, ZoomIn, X, Layers3 } fr
 import type { Copy } from '@/lib/i18n';
 import { money } from '@/lib/utils';
 import { useCart } from './cart-context';
+import { productPrice } from '@/lib/campaign-rules';
 export type DetailProduct = {
   id: string;
   name: string;
   slug: string;
   price: number;
   salePrice: number | null;
+  blackFridayPercent?: number;
   inventoryMode: string;
   trackInventory: boolean;
   stock: number;
@@ -48,7 +50,7 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
   const { add } = useCart();
   const router = useRouter();
   const variant = p.variants.find((v) => v.id === variantId);
-  const price = variant?.price ?? (p.salePrice ?? p.price) + (variant?.priceAdjustment || 0);
+  const { price, regularPrice, blackFriday } = productPrice(p, variant);
   const stock = variant?.stock ?? p.stock;
   const unavailable =
     p.inventoryMode === 'OUT_OF_STOCK' ||
@@ -142,10 +144,11 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
         <h1 className="page-title">{p.name}</h1>
         <div className="row">
           <strong className="detail-price">{money(price)}</strong>
-          {p.salePrice !== null && variant?.price == null && (
-            <del className="muted">{money(p.price + (variant?.priceAdjustment || 0))}</del>
-          )}
+          {price < regularPrice && <del className="muted">{money(regularPrice)}</del>}
         </div>
+        {blackFriday && (
+          <p className="campaign-product-note">Black Friday · {p.blackFridayPercent}%</p>
+        )}
         <p className={`stock-label ${unavailable ? 'unavailable' : ''}`}>
           <Layers3 size={15} />
           {unavailable

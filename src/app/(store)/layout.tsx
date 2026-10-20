@@ -4,15 +4,36 @@ import { CartProvider } from '@/components/cart-context';
 import { getCopy, getLocale } from '@/lib/i18n';
 import { getSettings } from '@/lib/settings';
 import { LiveChat } from '@/components/live-chat';
+import { getBlackFriday } from '@/lib/campaigns';
+import { campaignStatus } from '@/lib/campaign-rules';
+import { CampaignRefresh } from '@/components/campaign-refresh';
 export const dynamic = 'force-dynamic';
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [copy, locale, s] = await Promise.all([getCopy(), getLocale(), getSettings()]);
+  const [copy, locale, s, campaign] = await Promise.all([
+    getCopy(),
+    getLocale(),
+    getSettings(),
+    getBlackFriday(),
+  ]);
+  const status = campaignStatus(campaign);
   return (
     <CartProvider copy={copy}>
       <a className="skip-link" href="#main">
         Skip to content
       </a>
       <Header copy={copy} locale={locale} name={s.storeName} logo={s.logo} />
+      {status === 'active' && (
+        <Link className="campaign-banner" href="/black-friday">
+          <strong>BLACK FRIDAY</strong>
+          <span>
+            {locale === 'en'
+              ? `${campaign.discountPercent}% off selected products`
+              : `${campaign.discountPercent}% попуст на избрани производи`}
+          </span>
+          <span>{locale === 'en' ? 'View offers' : 'Види ги понудите'} ↗</span>
+        </Link>
+      )}
+      {(status === 'active' || status === 'scheduled') && <CampaignRefresh />}
       <main id="main">{children}</main>
       <footer>
         <div className="footer-grid">

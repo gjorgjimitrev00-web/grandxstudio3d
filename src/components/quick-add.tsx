@@ -6,6 +6,7 @@ import type { DetailProduct } from './product-detail';
 import { useCart } from './cart-context';
 import { money } from '@/lib/utils';
 import { api } from './api-form';
+import { productPrice } from '@/lib/campaign-rules';
 export function QuickAdd({ id, name, copy }: { id: string; name: string; copy: Copy }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [p, setProduct] = useState<DetailProduct | null>(null);
@@ -15,7 +16,7 @@ export function QuickAdd({ id, name, copy }: { id: string; name: string; copy: C
   const [busy, setBusy] = useState(false);
   const { add } = useCart();
   const v = p?.variants.find((v) => v.id === variantId);
-  const price = p ? (v?.price ?? (p.salePrice ?? p.price) + (v?.priceAdjustment || 0)) : 0;
+  const price = p ? productPrice(p, v).price : 0;
   const unavailable =
     p &&
     (p.inventoryMode === 'OUT_OF_STOCK' ||
@@ -29,6 +30,7 @@ export function QuickAdd({ id, name, copy }: { id: string; name: string; copy: C
         onClick={async () => {
           setBusy(true);
           setError('');
+          setProduct(null);
           dialog.current?.showModal();
           try {
             const product = await api(`/api/catalog/${id}`, 'GET');

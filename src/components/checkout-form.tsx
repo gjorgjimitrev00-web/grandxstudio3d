@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { LockKeyhole, PackageCheck } from 'lucide-react';
 import { useCart, CartLines } from './cart-context';
 import { money } from '@/lib/utils';
-import { api } from './api-form';
+import { api, ApiError } from './api-form';
 import { RewardsPicker, type CheckoutRewards } from './rewards-picker';
 import { rewardsCopy } from '@/lib/rewards-copy';
 import { discountLimit } from '@/lib/rewards-rules';
@@ -26,6 +26,7 @@ type Profile = {
   postalCode?: string;
 };
 type Quote = {
+  blackFriday: boolean;
   rewardDiscount: number;
   giftPoints: number;
   pointsEarned: number;
@@ -93,9 +94,11 @@ export function CheckoutForm({
   const [giftId, setGiftId] = useState('');
   const rt = rewardsCopy[rewards.locale];
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteVersion, setQuoteVersion] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const key = useRef('');
+  const uncertainSubmission = useRef(false);
   const router = useRouter();
   const cart = items.map((i) => ({
     productId: i.productId,
@@ -104,6 +107,18 @@ export function CheckoutForm({
     options: i.options,
   }));
   const cartJson = JSON.stringify(cart);
+  useEffect(() => {
+    const refresh = () => {
+      if (!busy && !uncertainSubmission.current && document.visibilityState === 'visible')
+        setQuoteVersion((v) => v + 1);
+    };
+    const timer = setInterval(refresh, 60000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [busy]);
   useEffect(() => {
     if (!cart.length || !method) {
       setQuote(null);
@@ -115,9 +130,20 @@ export function CheckoutForm({
     api('/api/checkout/quote', 'POST', {
       items: JSON.parse(cartJson),
       shippingMethodId: method,
-      rewards: { discountPoints, giftId },
+      rewards: { discountPoints: 0, giftId: '' },
     })
-      .then((result) => {
+      .then(async (result) => {
+        if (cancelled) return;
+        if (result.blackFriday) {
+          setDiscountPoints(0);
+          setGiftId('');
+        } else if (discountPoints || giftId) {
+          result = await api('/api/checkout/quote', 'POST', {
+            items: JSON.parse(cartJson),
+            shippingMethodId: method,
+            rewards: { discountPoints, giftId },
+          });
+        }
         if (!cancelled) setQuote(result);
       })
       .catch((e) => {
@@ -126,7 +152,7 @@ export function CheckoutForm({
     return () => {
       cancelled = true;
     };
-  }, [cartJson, method, discountPoints, giftId]);
+  }, [cartJson, method, discountPoints, giftId, quoteVersion]);
   useEffect(() => {
     const fingerprint = JSON.stringify([
       cartJson,
@@ -138,6 +164,7 @@ export function CheckoutForm({
     const stored = sessionStorage.getItem('gx-checkout');
     try {
       const parsed = JSON.parse(stored || 'null');
+      if (parsed?.fingerprint !== fingerprint) uncertainSubmission.current = false;
       key.current = parsed?.fingerprint === fingerprint ? parsed.key : crypto.randomUUID();
     } catch {
       key.current = crypto.randomUUID();
@@ -158,7 +185,9 @@ export function CheckoutForm({
       className="two-column"
       onSubmit={async (e) => {
         e.preventDefault();
+        if (!quote || busy) return;
         setBusy(true);
+        uncertainSubmission.current = true;
         setError('');
         const data = Object.fromEntries(new FormData(e.currentTarget));
         try {
@@ -170,33 +199,63 @@ export function CheckoutForm({
             shippingMethodId: method,
             idempotencyKey: key.current,
             rewards: { discountPoints, giftId },
+            expectedTotal: quote.total,
           });
           sessionStorage.removeItem('gx-checkout');
+          uncertainSubmission.current = false;
           clear();
           router.push(result.url);
           router.refresh();
         } catch (e) {
           setError(e instanceof Error ? e.message : copy.error);
           setBusy(false);
+          // Only change selections after a definite rejection. Network/server failures
+          // may have committed an order; preserve its idempotency key for safe retries.
+          if (e instanceof ApiError && [400, 409].includes(e.status)) {
+            uncertainSubmission.current = false;
+            try {
+              const latest = await api('/api/checkout/quote', 'POST', {
+                items: cart,
+                shippingMethodId: method,
+                rewards: { discountPoints: 0, giftId: '' },
+              });
+              setDiscountPoints(0);
+              setGiftId('');
+              setQuote(latest);
+            } catch {
+              setQuote(null);
+            }
+          }
         }
       }}
     >
       <div className="stack">
-        <RewardsPicker
-          data={{ ...rewards, balance: quote?.rewards.balance ?? rewards.balance }}
-          points={discountPoints}
-          giftId={giftId}
-          onPoints={setDiscountPoints}
-          onGift={setGiftId}
-          maxDiscount={
-            quote?.rewards.maxDiscount ??
-            discountLimit(
-              items.reduce((n, i) => n + i.quantity * i.price, 0),
-              rewards.balance - (rewards.gifts.find((g) => g.id === giftId)?.points || 0),
-              rewards.maxDiscountPercent,
-            )
-          }
-        />
+        {quote?.blackFriday ? (
+          <section className="panel">
+            <h2>Black Friday</h2>
+            <p>
+              {rewards.locale === 'en'
+                ? 'The best available offer is applied. Points and gift redemption cannot be combined with Black Friday. You still earn points on your purchase.'
+                : 'Применета е најповолната понуда. Поени и подароци не се комбинираат со Black Friday. И понатаму заработуваш поени од купувањето.'}
+            </p>
+          </section>
+        ) : (
+          <RewardsPicker
+            data={{ ...rewards, balance: quote?.rewards.balance ?? rewards.balance }}
+            points={discountPoints}
+            giftId={giftId}
+            onPoints={setDiscountPoints}
+            onGift={setGiftId}
+            maxDiscount={
+              quote?.rewards.maxDiscount ??
+              discountLimit(
+                items.reduce((n, i) => n + i.quantity * i.price, 0),
+                rewards.balance - (rewards.gifts.find((g) => g.id === giftId)?.points || 0),
+                rewards.maxDiscountPercent,
+              )
+            }
+          />
+        )}
         <div className="panel">
           <h2>01 — {copy.shipping}</h2>
           <div className="form-grid">

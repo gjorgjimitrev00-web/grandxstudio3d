@@ -1,6 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
+}
 export async function api(url: string, method: string, data?: unknown) {
   const multipart = data instanceof FormData;
   const response = await fetch(url, {
@@ -9,7 +17,7 @@ export async function api(url: string, method: string, data?: unknown) {
     body: data === undefined ? undefined : multipart ? data : JSON.stringify(data),
   });
   const result = await response.json();
-  if (!response.ok) throw Error(result.error || 'Request failed.');
+  if (!response.ok) throw new ApiError(result.error || 'Request failed.', response.status);
   return result;
 }
 export function ApiForm({

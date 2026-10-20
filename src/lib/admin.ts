@@ -7,10 +7,13 @@ import { updateOrderStatus } from './checkout';
 import { rewardsAdminRequest } from './rewards-admin';
 import { OrderStatus, RequestStatus } from '@prisma/client';
 import { defaults } from './settings';
+import { campaignsAdminRequest } from './campaigns';
+import { CHRISTMAS_CATEGORY_SLUG } from './catalog-visibility';
 export async function adminRequest(request: Request, parts: string[]) {
   const [resource, id, action, childId] = parts;
   const method = request.method;
   if (resource === 'rewards') return rewardsAdminRequest(request, id, action);
+  if (resource === 'campaigns') return campaignsAdminRequest(request, id);
   if (resource === 'products') {
     if ((method === 'POST' && !id) || (method === 'PUT' && id && !action)) {
       const input = productSchema.parse(await readJson(request));
@@ -354,8 +357,23 @@ export async function adminRequest(request: Request, parts: string[]) {
     }
   }
   if (resource === 'categories') {
+    if (method === 'PATCH' && id && !action) {
+      const data = z
+        .object({ enabled: z.boolean() })
+        .strict()
+        .parse(await readJson(request));
+      return db.category.update({ where: { id }, data });
+    }
     if ((method === 'POST' && !id) || (method === 'PUT' && id && !action)) {
       const data = categorySchema.parse(await readJson(request));
+      if (id && data.slug !== CHRISTMAS_CATEGORY_SLUG) {
+        const current = await db.category.findUnique({ where: { id } });
+        if (current?.slug === CHRISTMAS_CATEGORY_SLUG)
+          throw new HttpError(
+            400,
+            'Keep the Christmas slug so its seasonal homepage follows the switch.',
+          );
+      }
       return id ? db.category.update({ where: { id }, data }) : db.category.create({ data });
     }
     if (method === 'DELETE') {

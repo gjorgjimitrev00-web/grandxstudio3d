@@ -18,7 +18,13 @@ export function CategoryForm({ category: c }: { category?: Category }) {
           </label>
           <label>
             Slug
-            <input name="slug" defaultValue={c?.slug} required pattern="[a-z0-9]+(-[a-z0-9]+)*" />
+            <input
+              name="slug"
+              defaultValue={c?.slug}
+              readOnly={c?.slug === 'christmas-decorations'}
+              required
+              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+            />
           </label>
           <label className="span-2">
             Description
@@ -36,9 +42,14 @@ export function CategoryForm({ category: c }: { category?: Category }) {
           </label>
           <label className="checkbox">
             <input name="enabled" type="checkbox" defaultChecked={c?.enabled ?? true} />
-            Enabled
+            Visible in store / Видливо во продавницата
           </label>
         </div>
+        <p className="form-note">
+          Исклучувањето ја крие категоријата и сите нејзини производи, дури и ако се во друга
+          категорија. Нарачките и податоците се зачувуваат. Повторното вклучување ги враќа само
+          објавените производи.
+        </p>
       </ApiForm>
       {c && (
         <>

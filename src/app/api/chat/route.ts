@@ -1,3 +1,6 @@
+import { z } from 'zod';
+import { db } from '@/lib/db';
+import { replyToVisitor } from '@/lib/chat-ai';
 import {
   chatAvailability,
   chatMessages,
@@ -41,7 +44,10 @@ export async function POST(request: Request) {
     const token = await visitorHash();
     if (!token) throw new HttpError(401, 'Open chat again to start a session.');
     await rateLimit(request, 'chat-send', 30, 300, token);
-    return chatResponse({ message: await sendVisitorMessage(token, input, request) });
+    const message = await sendVisitorMessage(token, input, request);
+    const conversation = await visitorConversation(token);
+    if (conversation) await replyToVisitor(conversation.id, message.id, request);
+    return chatResponse({ message });
   } catch (error) {
     return errorResponse(error);
   }
@@ -53,8 +59,22 @@ export async function PATCH(request: Request) {
     const conversation = token ? await visitorConversation(token) : null;
     if (!conversation) throw new HttpError(401, 'Chat session not found.');
     await rateLimit(request, 'chat-mark-read', 120, 60, token!);
-    const { through } = chatReadSchema.parse(await readJson(request));
-    await markChatRead(conversation.id, 'VISITOR', through);
+    const input = z
+      .union([
+        chatReadSchema,
+        z.object({ action: z.literal('human') }),
+        z.object({ aiConsent: z.boolean() }),
+      ])
+      .parse(await readJson(request));
+    if ('through' in input) await markChatRead(conversation.id, 'VISITOR', input.through);
+    else
+      await db.chatConversation.update({
+        where: { id: conversation.id },
+        data: {
+          ...('action' in input ? { aiPaused: true } : { aiConsent: input.aiConsent }),
+          aiVersion: { increment: 1 },
+        },
+      });
     return chatResponse({ ok: true });
   } catch (error) {
     return errorResponse(error);

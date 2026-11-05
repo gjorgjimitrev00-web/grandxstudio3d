@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { assistantSettings } from './chat-ai-config';
 import { cookies } from 'next/headers';
 import { ChatSender, Prisma } from '@prisma/client';
 import { db } from './db';
@@ -15,6 +16,9 @@ import {
 const COOKIE = 'gx-chat';
 export const chatConversationSelect = {
   id: true,
+  aiConsent: true,
+  aiPaused: true,
+  aiLastProcessedId: true,
   name: true,
   email: true,
   status: true,
@@ -39,7 +43,7 @@ export const chatResponse = (data: unknown, status = 200) =>
     headers: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' },
   });
 export async function chatAvailability() {
-  const [setting, presence] = await Promise.all([
+  const [setting, presence, ai] = await Promise.all([
     db.storeSetting.findUnique({ where: { key: 'chatEnabled' } }),
     db.chatPresence.findFirst({
       where: {
@@ -48,8 +52,13 @@ export async function chatAvailability() {
       },
       select: { userId: true },
     }),
+    assistantSettings(),
   ]);
-  return { enabled: setting?.value !== 'false', online: !!presence && setting?.value !== 'false' };
+  return {
+    aiEnabled: setting?.value !== 'false' && ai.aiConfigured && ai.aiSettingEnabled,
+    enabled: setting?.value !== 'false',
+    online: !!presence && setting?.value !== 'false',
+  };
 }
 export async function visitorHash() {
   const token = (await cookies()).get(COOKIE)?.value;
@@ -128,6 +137,7 @@ export async function sendChatMessage(conversationId: string, sender: ChatSender
         where: { id: conversationId },
         data: {
           status: 'OPEN',
+          ...(sender === 'ADMIN' ? { aiPaused: true, aiVersion: { increment: 1 } } : {}),
           preview: input.text.slice(0, 200),
           lastMessageAt: message.createdAt,
           messageCount: { increment: 1 },
@@ -157,6 +167,7 @@ export async function sendVisitorMessage(tokenHash: string, raw: unknown, reques
           visitorTokenHash: tokenHash,
           name: input.name,
           email: input.email,
+          aiConsent: input.aiConsent === true,
           preview: '',
           expiresAt: new Date(Date.now() + CHAT_LIFETIME_SECONDS * 1000),
         },
@@ -182,7 +193,7 @@ export async function markChatRead(
   const last = await db.chatMessage.findFirst({
     where: {
       conversationId,
-      sender: reader === 'ADMIN' ? 'VISITOR' : 'ADMIN',
+      sender: reader === 'ADMIN' ? 'VISITOR' : { in: ['ADMIN', 'AI'] },
       id: { lte: through },
     },
     orderBy: { id: 'desc' },

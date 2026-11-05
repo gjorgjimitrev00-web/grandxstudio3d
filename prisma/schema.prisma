@@ -488,6 +488,7 @@ model RateLimit {
 enum ChatSender {
   VISITOR
   ADMIN
+  AI
 }
 
 enum ChatStatus {
@@ -498,6 +499,11 @@ enum ChatStatus {
 model ChatConversation {
   id                   String        @id @default(cuid())
   visitorTokenHash     String        @unique @db.Char(64)
+  aiConsent            Boolean       @default(false)
+  aiPaused             Boolean       @default(false)
+  aiLastProcessedId    Int           @default(0)
+  aiVersion            Int           @default(0)
+  aiClaimedAt          DateTime?
   name                 String        @db.VarChar(100)
   email                String        @db.VarChar(191)
   status               ChatStatus    @default(OPEN)

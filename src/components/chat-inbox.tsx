@@ -4,7 +4,15 @@ import { Check, MessageCircle, Send } from 'lucide-react';
 import type { ChatConversationView, ChatMessageView, ChatSnapshot } from '@/lib/chat-contract';
 import { ChatMessages, chatRequest, mergeMessages, useChatPoll } from './chat-ui';
 
-function Conversation({ id, onChange }: { id: string; onChange: () => Promise<void> }) {
+function Conversation({
+  id,
+  onChange,
+  aiEnabled,
+}: {
+  id: string;
+  onChange: () => Promise<void>;
+  aiEnabled: boolean;
+}) {
   const [conversation, setConversation] = useState<ChatConversationView | null>(null);
   const [messages, setMessages] = useState<ChatMessageView[]>([]);
   const [text, setText] = useState('');
@@ -88,6 +96,49 @@ function Conversation({ id, onChange }: { id: string; onChange: () => Promise<vo
           {conversation.status === 'OPEN' ? 'Resolve' : 'Reopen'}
         </button>
       </header>
+      <div className="chat-ai-thread-controls">
+        <p>
+          <b>
+            {conversation.aiPaused
+              ? 'Studio handling this chat'
+              : aiEnabled && conversation.aiConsent
+                ? 'AI assistant active'
+                : 'Studio replies only'}
+          </b>
+          <span>
+            {conversation.aiConsent
+              ? 'Sending a reply takes over from the AI assistant.'
+              : 'The customer has not opted in to AI replies.'}
+          </span>
+        </p>
+        {conversation.aiConsent && (
+          <button
+            type="button"
+            className="button outline"
+            disabled={
+              busy || (conversation.aiPaused && (!aiEnabled || conversation.status === 'CLOSED'))
+            }
+            onClick={async () => {
+              setBusy(true);
+              setError('');
+              try {
+                await chatRequest(endpoint, {
+                  method: 'PATCH',
+                  body: JSON.stringify({ aiPaused: !conversation.aiPaused }),
+                });
+                await refresh();
+                await onChange().catch(() => {});
+              } catch (e) {
+                setError(e instanceof Error ? e.message : 'Could not update the AI assistant.');
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {conversation.aiPaused ? 'Resume AI replies' : 'Take over chat'}
+          </button>
+        )}
+      </div>
       <ChatMessages
         messages={messages}
         ownSender="ADMIN"
@@ -179,6 +230,10 @@ export function ChatInbox() {
   const [count, setCount] = useState(0);
   const [available, setAvailable] = useState(true);
   const [enabled, setEnabled] = useState(true);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiConfigured, setAiConfigured] = useState(false);
+  const [aiSettingEnabled, setAiSettingEnabled] = useState(false);
+  const [aiModel, setAiModel] = useState('');
   const [online, setOnline] = useState(false);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
@@ -190,11 +245,19 @@ export function ChatInbox() {
           conversations: ChatConversationView[];
           count: number;
           enabled: boolean;
+          aiEnabled: boolean;
+          aiConfigured: boolean;
+          aiSettingEnabled: boolean;
+          aiModel: string;
         }>(`/api/admin/chat?page=${page}&status=${status}`, { signal });
         if (signal?.aborted) return;
         setConversations(result.conversations);
         setCount(result.count);
         setEnabled(result.enabled);
+        setAiEnabled(result.aiEnabled === true);
+        setAiConfigured(result.aiConfigured === true);
+        setAiSettingEnabled(result.aiSettingEnabled === true);
+        setAiModel(result.aiModel);
         setLoaded(true);
         setError('');
       } catch (e) {
@@ -280,6 +343,46 @@ export function ChatInbox() {
           />
           <span>Enable storefront chat</span>
         </label>
+        <label className="chat-switch chat-ai-setting">
+          <input
+            type="checkbox"
+            checked={aiSettingEnabled}
+            disabled={settingBusy || !loaded || (!aiConfigured && !aiSettingEnabled)}
+            onChange={async (event) => {
+              const value = event.target.checked;
+              setSettingBusy(true);
+              try {
+                await chatRequest('/api/admin/chat', {
+                  method: 'PATCH',
+                  body: JSON.stringify({ aiEnabled: value }),
+                });
+                setAiSettingEnabled(value);
+                await refresh();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : 'Could not update the AI assistant.');
+              } finally {
+                setSettingBusy(false);
+              }
+            }}
+          />
+          <span>
+            <b>AI assistant · OpenAI</b>
+            <small>
+              {!loaded
+                ? 'Checking configuration…'
+                : !aiConfigured
+                  ? 'Add OPENAI_API_KEY to the server environment, then redeploy.'
+                  : !enabled
+                    ? 'Enable storefront chat to use AI replies.'
+                    : aiSettingEnabled
+                      ? `Ready · ${aiModel}`
+                      : `Off · ${aiModel}`}
+            </small>
+            <small>
+              Customers choose AI replies or studio-only chat. API usage is billed separately.
+            </small>
+          </span>
+        </label>
       </div>
       {error && (
         <p className="error-text chat-inbox-error" role="alert">
@@ -324,6 +427,7 @@ export function ChatInbox() {
                   {conversation.lastVisitorMessageId > conversation.adminReadThrough && (
                     <span className="chat-new">New</span>
                   )}
+                  {conversation.aiPaused && <span className="chat-human-badge">Studio</span>}
                 </span>
                 <p>{conversation.preview}</p>
                 <small>
@@ -357,7 +461,7 @@ export function ChatInbox() {
           </div>
         </aside>
         {selected ? (
-          <Conversation key={selected} id={selected} onChange={refresh} />
+          <Conversation key={selected} id={selected} onChange={refresh} aiEnabled={aiEnabled} />
         ) : (
           <div className="chat-inbox-placeholder">
             <MessageCircle size={38} />

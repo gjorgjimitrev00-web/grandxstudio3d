@@ -16,6 +16,9 @@ export function LiveChat({ locale }: { locale: 'mk' | 'en' }) {
   const [messages, setMessages] = useState<ChatMessageView[]>([]);
   const [online, setOnline] = useState(false);
   const [enabled, setEnabled] = useState(true);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiConsent, setAiConsent] = useState(false);
+  const [controlBusy, setControlBusy] = useState(false);
   const [hasOlder, setHasOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [text, setText] = useState('');
@@ -27,7 +30,7 @@ export function LiveChat({ locale }: { locale: 'mk' | 'en' }) {
   const panel = useRef<HTMLElement>(null);
   const thread = useRef<string | null>(null);
   const latest = useRef(0);
-  const pending = useRef<{ body: string; id: string } | null>(null);
+  const pending = useRef<{ text: string; id: string } | null>(null);
   const active = open || resume;
   useEffect(() => {
     try {
@@ -77,6 +80,7 @@ export function LiveChat({ locale }: { locale: 'mk' | 'en' }) {
         setConversation(snapshot.conversation);
         setOnline(!!snapshot.online);
         setEnabled(snapshot.enabled !== false);
+        setAiEnabled(snapshot.aiEnabled === true);
         setLoaded(true);
         setConnectionError(false);
         if (
@@ -105,6 +109,23 @@ export function LiveChat({ locale }: { locale: 'mk' | 'en' }) {
   };
   const unread =
     !!conversation && conversation.lastAdminMessageId > conversation.visitorReadThrough;
+  const aiActive = aiEnabled && !conversation?.aiPaused && (conversation?.aiConsent ?? aiConsent);
+  const updateAiPreference = async (human: boolean) => {
+    setControlBusy(true);
+    setError('');
+    try {
+      await chatRequest('/api/chat', {
+        method: 'PATCH',
+        body: JSON.stringify(human ? { action: 'human' } : { aiConsent: true }),
+      });
+      await refresh();
+      setAiConsent(false);
+    } catch {
+      setError(copy.aiControlError);
+    } finally {
+      setControlBusy(false);
+    }
+  };
   return (
     <div className="live-chat">
       {open && (
@@ -129,9 +150,13 @@ export function LiveChat({ locale }: { locale: 'mk' | 'en' }) {
               <h2 id="chat-title">{copy.title}</h2>
               <p>
                 <span
-                  className={`chat-presence ${online && !connectionError ? 'is-online' : ''}`}
+                  className={`chat-presence ${(online || aiActive) && !connectionError ? 'is-online' : ''}`}
                 />
-                {online && !connectionError ? copy.online : copy.offline}
+                {!connectionError && aiActive
+                  ? copy.aiOnline
+                  : online && !connectionError
+                    ? copy.online
+                    : copy.offline}
               </p>
             </div>
             <button
@@ -188,10 +213,50 @@ export function LiveChat({ locale }: { locale: 'mk' | 'en' }) {
                 <div className="chat-welcome">
                   <span className="eyebrow orange">GRANDXSTUDIO</span>
                   <h3>{copy.welcome}</h3>
-                  <p>{online ? copy.intro : copy.away}</p>
+                  <p>{aiEnabled ? copy.aiIntro : online ? copy.intro : copy.away}</p>
                 </div>
               )}
-              {!online && conversation && <p className="chat-notice">{copy.away}</p>}
+              {aiActive && <p className="chat-notice chat-ai-disclosure">{copy.aiDisclosure}</p>}
+              {conversation?.aiPaused ? (
+                <p className="chat-notice" role="status">
+                  {copy.aiPaused}
+                </p>
+              ) : !online && conversation && !aiActive ? (
+                <p className="chat-notice">{copy.away}</p>
+              ) : null}
+              {conversation && (aiEnabled || conversation.aiConsent) && !conversation.aiPaused && (
+                <div className="chat-ai-controls">
+                  {!conversation.aiConsent && (
+                    <>
+                      <label className="chat-consent">
+                        <input
+                          type="checkbox"
+                          checked={aiConsent}
+                          onChange={(event) => setAiConsent(event.target.checked)}
+                          disabled={busy || controlBusy}
+                        />
+                        <span>{copy.aiConsent}</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="text-link"
+                        disabled={!aiConsent || busy || controlBusy}
+                        onClick={() => void updateAiPreference(false)}
+                      >
+                        {copy.aiEnable}
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="text-link"
+                    disabled={controlBusy}
+                    onClick={() => void updateAiPreference(true)}
+                  >
+                    {copy.aiHuman}
+                  </button>
+                </div>
+              )}
               {connectionError && (
                 <p className="chat-notice" role="status">
                   {copy.connection}
@@ -202,7 +267,7 @@ export function LiveChat({ locale }: { locale: 'mk' | 'en' }) {
                   className="chat-compose"
                   onSubmit={async (event) => {
                     event.preventDefault();
-                    if (busy) return;
+                    if (busy || controlBusy) return;
                     setBusy(true);
                     setError('');
                     const form = new FormData(event.currentTarget);
@@ -214,17 +279,23 @@ export function LiveChat({ locale }: { locale: 'mk' | 'en' }) {
                             email: form.get('email'),
                             consent: form.get('consent') === 'on',
                             website: form.get('website'),
+                            aiConsent: aiEnabled && aiConsent,
                           }
                         : {}),
                     };
-                    const body = JSON.stringify(input);
-                    if (pending.current?.body !== body)
-                      pending.current = { body, id: crypto.randomUUID() };
+                    // Polling may discover the conversation before a slow send finishes.
+                    // Keep the same ID when retrying that message, even after the start form disappears.
+                    if (pending.current?.text !== text)
+                      pending.current = { text, id: crypto.randomUUID() };
                     try {
-                      const result = await chatRequest<{ message: ChatMessageView }>('/api/chat', {
-                        method: 'POST',
-                        body: JSON.stringify({ ...input, clientId: pending.current.id }),
-                      });
+                      const result = await chatRequest<{ message: ChatMessageView }>(
+                        '/api/chat',
+                        {
+                          method: 'POST',
+                          body: JSON.stringify({ ...input, clientId: pending.current.id }),
+                        },
+                        40000,
+                      );
                       setMessages((old) => mergeMessages(old, [result.message]));
                       setText('');
                       pending.current = null;
@@ -275,6 +346,7 @@ export function LiveChat({ locale }: { locale: 'mk' | 'en' }) {
                       maxLength={2000}
                       rows={3}
                       placeholder={copy.placeholder}
+                      disabled={busy}
                     />
                   </label>
                   {!conversation && (
@@ -288,13 +360,28 @@ export function LiveChat({ locale }: { locale: 'mk' | 'en' }) {
                       </span>
                     </label>
                   )}
+                  {!conversation && aiEnabled && (
+                    <label className="chat-consent chat-ai-consent">
+                      <input
+                        name="aiConsent"
+                        type="checkbox"
+                        checked={aiConsent}
+                        disabled={busy}
+                        onChange={(event) => setAiConsent(event.target.checked)}
+                      />
+                      <span>{copy.aiConsent}</span>
+                    </label>
+                  )}
                   {error && (
                     <p className="error-text" role="alert">
                       {error}
                     </p>
                   )}
-                  <button className="button orange-bg chat-send" disabled={busy || !text.trim()}>
-                    {busy ? copy.sending : copy.send}
+                  <button
+                    className="button orange-bg chat-send"
+                    disabled={busy || controlBusy || !text.trim()}
+                  >
+                    {busy ? (aiActive ? copy.aiThinking : copy.sending) : copy.send}
                     <Send size={16} />
                   </button>
                   <p className="chat-footnote">{copy.returnNotice}</p>

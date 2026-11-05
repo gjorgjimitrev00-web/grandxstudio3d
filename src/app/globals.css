@@ -2806,6 +2806,74 @@ details[open] > summary {
 .chat-inbox-error {
   margin-bottom: 16px;
 }
+.chat-message-ai {
+  border-left: 3px solid var(--brand);
+}
+.chat-ai-disclosure {
+  background: var(--brand-soft);
+}
+.chat-ai-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.chat-ai-controls .chat-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.chat-ai-controls .text-link {
+  font-size: 11px;
+  min-height: 32px;
+}
+.chat-ai-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.chat-ai-thread-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--brand-soft);
+  flex-shrink: 0;
+}
+.chat-ai-thread-controls p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.chat-ai-thread-controls p span {
+  display: block;
+  color: var(--muted);
+}
+.chat-ai-thread-controls .button {
+  font-size: 11px;
+  min-height: 36px;
+  padding: 8px 12px;
+}
+.chat-ai-setting {
+  flex-basis: 100%;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.chat-human-badge {
+  font-size: 10px;
+  color: var(--brand-ink);
+  background: var(--brand-soft);
+  border-radius: 4px;
+  padding: 3px 5px;
+}
 @media (max-width: 900px) {
   .chat-inbox {
     grid-template-columns: 235px minmax(0, 1fr);

@@ -1,7 +1,15 @@
+import { assistantSettings, assistantConfigured } from '@/lib/chat-ai-config';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { chatAvailability, chatConversationSelect, chatResponse } from '@/lib/chat';
-import { errorResponse, originCheck, rateLimit, readJson, requireAdmin } from '@/lib/security';
+import {
+  errorResponse,
+  HttpError,
+  originCheck,
+  rateLimit,
+  readJson,
+  requireAdmin,
+} from '@/lib/security';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +39,7 @@ export async function GET(request: Request) {
       db.chatConversation.count({ where }),
       chatAvailability(),
     ]);
-    return chatResponse({ conversations, count, ...availability });
+    return chatResponse({ conversations, count, ...availability, ...(await assistantSettings()) });
   } catch (error) {
     return errorResponse(error);
   }
@@ -59,10 +67,17 @@ export async function PATCH(request: Request) {
     originCheck(request);
     const user = await requireAdmin();
     await rateLimit(request, 'chat-settings', 20, 60, user.id);
-    const { enabled } = z.object({ enabled: z.boolean() }).parse(await readJson(request));
+    const input = z
+      .union([z.object({ enabled: z.boolean() }), z.object({ aiEnabled: z.boolean() })])
+      .parse(await readJson(request));
+    const isAi = 'aiEnabled' in input;
+    const enabled = isAi ? input.aiEnabled : input.enabled;
+    if (isAi && enabled && !assistantConfigured())
+      throw new HttpError(400, 'Add OPENAI_API_KEY in hosting environment variables first.');
+    const key = isAi ? 'chatAiEnabled' : 'chatEnabled';
     await db.storeSetting.upsert({
-      where: { key: 'chatEnabled' },
-      create: { key: 'chatEnabled', value: String(enabled) },
+      where: { key },
+      create: { key, value: String(enabled) },
       update: { value: String(enabled) },
     });
     return chatResponse({ ok: true });

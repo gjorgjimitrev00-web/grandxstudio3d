@@ -56,6 +56,7 @@ export async function PATCH(request: Request, context: Context) {
     const input = z
       .union([
         chatReadSchema,
+        z.object({ aiPaused: z.boolean() }),
         z.object({
           status: z.enum(['OPEN', 'CLOSED']),
           expectedLastVisitorMessageId: z.number().int().min(0),
@@ -63,10 +64,15 @@ export async function PATCH(request: Request, context: Context) {
       ])
       .parse(await readJson(request));
     if ('through' in input) await markChatRead(id, 'ADMIN', input.through);
-    else {
+    else if ('aiPaused' in input) {
+      await db.chatConversation.update({
+        where: { id },
+        data: { aiPaused: input.aiPaused, aiVersion: { increment: 1 } },
+      });
+    } else {
       const result = await db.chatConversation.updateMany({
         where: { id, lastVisitorMessageId: input.expectedLastVisitorMessageId },
-        data: { status: input.status },
+        data: { status: input.status, aiVersion: { increment: 1 } },
       });
       if (!result.count)
         throw new HttpError(

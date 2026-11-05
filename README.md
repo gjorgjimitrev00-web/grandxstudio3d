@@ -81,13 +81,36 @@ Hostinger documents backend build files outside public_html, but this project do
 
 ## Live chat
 
-Customers can use the floating chat button on any storefront page, in Macedonian or English. They enter a name, email and message without creating an account. Conversations and replies are stored in MySQL; no external chat subscription, payment provider or additional environment variables are required.
+Customers can use the floating chat button on any storefront page, in Macedonian or English. They enter a name, email and message without creating an account. Conversations and replies are stored in MySQL; human chat needs no external chat subscription or additional environment variables. The optional AI assistant below requires an OpenAI API key.
 
 - Open **Admin → Live chat** (`/admin/chat`) to read and reply. Keep that browser tab visible with **You’re available** checked to appear online. New messages refresh automatically within a few seconds. When the tab is hidden or closed, visitors can still leave messages. A stale presence expires within 75 seconds if the browser disconnects unexpectedly.
 - Select a conversation to mark incoming messages as read. Use **Resolve** when finished; a new message reopens it. Filter open, resolved or all conversations. **Enable storefront chat** controls the customer widget; disabling it takes effect on the next page load and also blocks new customer messages immediately.
 - Replies appear in the website chat. There are **no email, SMS, push or background desktop notifications**. The entered email is available to staff if a separate follow-up is needed. Customers must return in the same browser to retrieve their replies. Clearing cookies or using another browser loses access.
 - Private guest access uses a random, HTTP-only, SameSite=Strict cookie scoped to `/api/chat`, with Secure enabled in production. Only its hash is stored. Conversations expire 30 days after creation; `npm run maintenance` deletes expired conversations and their messages. Run maintenance regularly in a trusted environment connected to MySQL; deployment does not schedule it automatically. Include chat/contact-data handling in your store’s editable privacy policy.
 - Deploy with the existing **`npm run deploy:build`** command. It applies `202609300001_live_chat`, creating the chat tables without changing customer accounts or orders. Back up MySQL before deployment. Afterward, sign in at `/admin/chat`, open the storefront in a second browser, send a test message, reply from admin and confirm delivery. The transport uses short polling suitable for the existing managed Node hosting.
+
+### Optional OpenAI assistant
+
+1. Add `OPENAI_API_KEY` in Hostinger environment variables (never in chat, source code, a public setting, or a `NEXT_PUBLIC_` variable). Optional: `OPENAI_CHAT_MODEL=gpt-4.1-mini` and `OPENAI_CHAT_DAILY_LIMIT=300`.
+2. Deploy using `npm run deploy:build`. Migration `202611050001_ai_chat` adds AI attribution, opt-in and takeover state. Existing conversations start without AI consent; the assistant switch starts off.
+3. Open **Admin → Live chat**, confirm the model is shown instead of the missing-key notice, then enable **AI assistant · OpenAI**. This detects a configured key, not its validity. Check OpenAI project billing/usage limits separately; the app's request cap is not a currency budget.
+4. Customers can explicitly opt into sending chat text to OpenAI, or continue with the studio only. A **human** request or administrator reply pauses AI; the inbox can resume it for subsequent messages. If the API errors, times out, or hits a cap, the saved conversation is handed to staff. No emails or push notifications are added.
+
+The assistant uses the [Responses API](https://developers.openai.com/api/docs/guides/text) with `store: false`, no tools, the latest 12 messages, a 20-second timeout, and a 600-token output cap. `store: false` disables stored response objects; it does not promise zero retention by OpenAI. Chat identity fields, accounts and orders are never included in model context. Common emails/phone numbers in message text are redacted on a best-effort basis; free text can still contain personal information. Add the AI provider and chat processing to your editable privacy policy before enabling it publicly.
+
+Only published products in enabled categories and public shop policies enter the context (up to 80 recent products); active campaign pricing is included. Missing facts, order changes/status, refunds and requests for staff are handed off. The assistant cannot change orders, prices, accounts or payments. AI answers can be wrong; staff can review every message in the inbox.
+
+Limits: 20 model calls per conversation/day, 10 per IP/minute, and `OPENAI_CHAT_DAILY_LIMIT` across the store/day, using UTC time buckets. With `TRUST_PROXY=false`, the IP limit is shared across visitors; only enable trusted proxy headers when your host overwrites them. A retry of the same message does not make another paid call. If a worker stops mid-request, retrying after 30 seconds produces a studio handoff. Disable the AI switch to stop new calls and discard in-flight replies; normal chat remains available.
+
+Validation without a paid request:
+
+```bash
+node --import tsx --test tests/chat-ai.test.ts
+# Requires a disposable localhost database whose name contains test or preview:
+node --import tsx --test tests/integration/chat-ai.test.ts
+```
+
+After adding a real key, test a product/shipping question and human takeover on the deployed site. Automated checks use mocked OpenAI responses and do not verify the account's billing/model access.
 
 ### Chat verification
 

@@ -11,6 +11,7 @@ export const chatStartSchema = chatMessageSchema.extend({
   name: z.string().trim().min(1).max(100),
   email: z.string().trim().toLowerCase().pipe(z.email().max(191)),
   consent: z.literal(true),
+  aiConsent: z.boolean().optional(),
   website: z.string().max(0).optional(),
 });
 export const chatReadSchema = z.object({ through: z.number().int().min(0).max(2147483647) });
@@ -23,7 +24,7 @@ export const chatPageSchema = z
 
 export type ChatMessageView = {
   id: number;
-  sender: 'VISITOR' | 'ADMIN';
+  sender: 'VISITOR' | 'ADMIN' | 'AI';
   text: string;
   createdAt: string;
 };
@@ -33,6 +34,9 @@ export type ChatConversationView = {
   email: string;
   status: 'OPEN' | 'CLOSED';
   preview: string;
+  aiConsent: boolean;
+  aiPaused: boolean;
+  aiLastProcessedId: number;
   lastVisitorMessageId: number;
   lastAdminMessageId: number;
   adminReadThrough: number;
@@ -46,4 +50,5 @@ export type ChatSnapshot = {
   hasMore: boolean;
   enabled?: boolean;
   online?: boolean;
+  aiEnabled?: boolean;
 };

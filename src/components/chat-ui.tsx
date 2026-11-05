@@ -2,14 +2,18 @@
 import { useEffect, useRef } from 'react';
 import type { ChatMessageView } from '@/lib/chat-contract';
 
-export async function chatRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
+export async function chatRequest<T>(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 15000,
+): Promise<T> {
   const response = await fetch(url, {
     cache: 'no-store',
     ...options,
     headers: { 'Content-Type': 'application/json', ...options.headers },
     signal: options.signal
-      ? AbortSignal.any([options.signal, AbortSignal.timeout(15000)])
-      : AbortSignal.timeout(15000),
+      ? AbortSignal.any([options.signal, AbortSignal.timeout(timeoutMs)])
+      : AbortSignal.timeout(timeoutMs),
   });
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || 'Chat request failed.');
@@ -115,10 +119,18 @@ export function ChatMessages({
       )}
       {messages.map((message) => (
         <article
-          className={`chat-message ${message.sender === ownSender ? 'chat-message-own' : ''}`}
+          className={`chat-message ${message.sender === ownSender ? 'chat-message-own' : ''} ${message.sender === 'AI' ? 'chat-message-ai' : ''}`}
           key={message.id}
         >
-          <span className="chat-message-author">{message.sender === ownSender ? you : other}</span>
+          <span className="chat-message-author">
+            {message.sender === 'AI'
+              ? locale === 'mk'
+                ? 'GrandXStudio · AI асистент'
+                : 'GrandXStudio · AI assistant'
+              : message.sender === ownSender
+                ? you
+                : other}
+          </span>
           <p>{message.text}</p>
           <time
             dateTime={message.createdAt}

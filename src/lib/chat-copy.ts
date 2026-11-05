@@ -29,6 +29,18 @@ export const chatCopy = {
     you: 'You',
     studio: 'GrandXStudio',
     newReply: 'New reply',
+    aiOnline: 'AI assistant available',
+    aiIntro:
+      'Our AI assistant can help with products and delivery. You can also leave a message for the studio.',
+    aiConsent:
+      'Use the AI assistant. I agree to send this conversation, including earlier messages, to OpenAI for automated replies. Optional — leave unchecked to chat only with the studio.',
+    aiDisclosure:
+      'You are chatting with an AI assistant powered by OpenAI. It can make mistakes; the studio can confirm details.',
+    aiThinking: 'AI is preparing a reply…',
+    aiEnable: 'Enable AI replies',
+    aiHuman: 'Talk to a person',
+    aiPaused: 'AI replies are paused. The studio will reply here when available.',
+    aiControlError: 'Could not update your chat preference. Please try again.',
   },
   mk: {
     title: 'Разговор со студиото',
@@ -60,6 +72,18 @@ export const chatCopy = {
     you: 'Вие',
     studio: 'GrandXStudio',
     newReply: 'Нов одговор',
+    aiOnline: 'AI асистентот е достапен',
+    aiIntro:
+      'Нашиот AI асистент помага со производи и достава. Можете и да оставите порака за студиото.',
+    aiConsent:
+      'Користи AI асистент. Се согласувам овој разговор, вклучувајќи ги претходните пораки, да се испрати до OpenAI за автоматски одговори. По избор — оставете непроверено за разговор само со студиото.',
+    aiDisclosure:
+      'Разговарате со AI асистент поврзан со OpenAI. Може да згреши; студиото може да ги потврди деталите.',
+    aiThinking: 'AI подготвува одговор…',
+    aiEnable: 'Вклучи AI одговори',
+    aiHuman: 'Разговор со човек',
+    aiPaused: 'AI одговорите се паузирани. Студиото ќе одговори тука кога ќе биде достапно.',
+    aiControlError: 'Не успеавме да го смениме изборот за разговорот. Обидете се повторно.',
   },
 };
 export type ChatCopy = typeof chatCopy.en;

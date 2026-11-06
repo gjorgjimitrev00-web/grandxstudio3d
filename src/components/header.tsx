@@ -36,6 +36,7 @@ export function Header({
   const links = [
     ['/', copy.home],
     ['/shop', copy.shop],
+    ['/custom-frames', locale === 'en' ? 'Custom frames' : 'Рамки по мерка'],
     ['/categories', copy.categories],
     ['/custom-order', copy.custom],
     ['/about', copy.about],

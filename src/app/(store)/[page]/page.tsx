@@ -39,6 +39,18 @@ export default async function ContentPage({ params }: { params: Promise<{ page: 
         )}
         <div>{s[page]}</div>
         {page === 'privacy' && (
+          <section>
+            <h2>
+              {locale === 'en' ? 'Personalized frame orders' : 'Нарачки на персонализирани рамки'}
+            </h2>
+            <p>
+              {locale === 'en'
+                ? 'The frame editor previews your photos in your browser. When you submit an order, GrandXStudio uses the uploaded artwork to create a print PDF and a proof. These files and your order details are stored privately for the studio to prepare the print and contact you about your order.'
+                : 'Уредувачот ги прикажува фотографиите во вашиот прелистувач. Кога ќе ја испратите нарачката, GrandXStudio ги користи фотографиите за да подготви PDF за печатење и преглед на постерот. Датотеките и податоците за нарачката се чуваат приватно за студиото да го изработи постерот и да ве контактира околу нарачката.'}
+            </p>
+          </section>
+        )}
+        {page === 'privacy' && (
           <AnalyticsPrivacy locale={locale} enabled={s.analyticsEnabled !== 'false'} />
         )}
       </div>

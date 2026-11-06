@@ -543,3 +543,42 @@ model ChatPresence {
 
   @@index([lastSeenAt])
 }
+
+model FrameOrder {
+  id             String            @id @default(cuid())
+  reference      String            @unique @db.VarChar(32)
+  idempotencyKey String            @unique @db.Char(36)
+  fingerprint    String            @db.Char(64)
+  name           String            @db.VarChar(150)
+  email          String            @db.VarChar(191)
+  phone          String            @db.VarChar(32)
+  quantity       Int
+  paper          String            @db.VarChar(12)
+  unitPrice      Int?
+  notes          String            @db.Text
+  design         Json
+  effectivePpi   Json
+  pdfBytes       Int
+  previewBytes   Int
+  status         RequestStatus     @default(NEW)
+  chunks         FrameAssetChunk[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([status, createdAt])
+}
+
+enum FrameAssetKind {
+  PRINT
+  PREVIEW
+}
+
+model FrameAssetChunk {
+  orderId  String
+  kind     FrameAssetKind
+  position Int
+  data     Bytes          @db.MediumBlob
+  order    FrameOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@id([orderId, kind, position])
+}

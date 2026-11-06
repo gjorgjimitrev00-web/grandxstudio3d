@@ -18,6 +18,7 @@ export default async function Dashboard() {
     products,
     customers,
     requests,
+    newFrameOrders,
     recent,
     lowStock,
   ] = await Promise.all([
@@ -32,6 +33,7 @@ export default async function Dashboard() {
     db.customPrintRequest.count({
       where: { status: { in: ['NEW', 'REVIEWING', 'QUOTE_SENT', 'APPROVED', 'PRINTING'] } },
     }),
+    db.frameOrder.count({ where: { status: 'NEW' } }),
     db.order.findMany({ take: 8, orderBy: { createdAt: 'desc' } }),
     db.$queryRaw<
       { total: bigint }[]
@@ -116,6 +118,10 @@ export default async function Dashboard() {
           <p>Review designs, prepare quotes, and manage production.</p>
         </span>
         <span>Open requests ↗</span>
+      </Link>
+      <Link className="custom-request-callout" href="/admin/frame-orders">
+        <b>{newFrameOrders} new frame orders</b>
+        <span>Review artwork ↗</span>
       </Link>
     </>
   );

@@ -47,8 +47,8 @@ export function Header({
       <div className="announcement">
         <span>
           {locale === 'en'
-            ? '3D printed with care in Macedonia'
-            : '3D печатено со внимание во Македонија'}
+            ? 'Free delivery on orders of 3,000 MKD or more'
+            : 'Бесплатна достава за нарачки од 3.000 денари'}
         </span>
         <span>{copy.cod}</span>
       </div>

@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Prisma } from '@prisma/client';
 import { api, ActionButton, ApiForm } from './api-form';
+import { KEYCHAIN_STARTER_ID } from '@/lib/keychain-preview';
+import { KeychainSettings } from './keychain-settings';
 import { OptionEditor } from './option-editor';
 type Product = Prisma.ProductGetPayload<{
   include: {
@@ -77,6 +79,7 @@ export function ProductEditor({
         <div className="stack">
           <section className="panel">
             <h2>Product details</h2>
+            {p?.id === KEYCHAIN_STARTER_ID && !p.published && <p className="form-note">Set your price, add a product photo and configure your available colors in “Name keychain preview” before publishing this draft.</p>}
             <div className="form-grid">
               <label className="span-2">
                 Name
@@ -265,6 +268,7 @@ export function ProductEditor({
       {p ? (
         <>
           <ImageManager product={p} />
+          <KeychainSettings key={JSON.stringify(p.options)} productId={p.id} options={p.options} />
           <section className="panel editor-section">
             <h2>Options</h2>
             <p className="form-note">

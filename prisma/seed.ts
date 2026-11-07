@@ -112,6 +112,7 @@ async function main() {
       data: {
         productId: product.id,
         name: 'Боја / Color',
+        keychainRole: slug === 'personalized-keychain' ? 'COLOR' : null,
         kind: 'SELECT',
         required: true,
         values: {
@@ -137,7 +138,13 @@ async function main() {
       });
     if (categorySlug === 'personalized' || slug === 'personalized-keychain')
       await db.productOption.create({
-        data: { productId: product.id, name: 'Персонализиран текст', kind: 'TEXT', required: true },
+        data: {
+          productId: product.id,
+          name: 'Персонализиран текст',
+          kind: 'TEXT',
+          required: true,
+          keychainRole: slug === 'personalized-keychain' ? 'NAME' : null,
+        },
       });
   }
   for (const [id, name, kind, price, freeThreshold, enabled] of [

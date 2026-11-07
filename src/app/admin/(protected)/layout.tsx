@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import {
   LayoutDashboard,
+  ClipboardList,
+  PartyPopper,
+  Star,
+  ListFilter,
   ChartNoAxesCombined,
   Package,
   Tags,
@@ -28,6 +32,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const nav = [
     ['/admin', 'Overview', LayoutDashboard],
     ['/admin/analytics', 'Visitors', ChartNoAxesCombined],
+    ['/admin/production', 'Production queue', ClipboardList],
+    ['/admin/event-orders', 'Events & business', PartyPopper],
+    ['/admin/reviews', 'Customer reviews', Star],
+    ['/admin/gift-finder', 'Gift finder', ListFilter],
     ['/admin/products', 'Products', Package],
     ['/admin/categories', 'Categories', Tags],
     ['/admin/campaigns', 'Кампањи / Black Friday', CalendarDays],

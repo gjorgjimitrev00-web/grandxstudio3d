@@ -2,6 +2,7 @@ import { requireAdminPage } from '@/lib/admin-access';
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
+import { KEYCHAIN_STARTER_ID } from '@/lib/keychain-preview';
 import { money } from '@/lib/utils';
 import { AdminHeading, Pager } from '@/components/admin-shared';
 import { ActionButton } from '@/components/api-form';
@@ -32,6 +33,9 @@ export default async function Products({
   return (
     <>
       <AdminHeading title="Products" sub="Build your collection, one thoughtful design at a time.">
+        <ActionButton endpoint="/api/admin/products/keychain-starter" redirect="result">
+          Name keychain starter
+        </ActionButton>
         <Link className="button" href="/admin/products/new">
           Add product +
         </Link>
@@ -68,7 +72,11 @@ export default async function Products({
                     </div>
                   </Link>
                 </td>
-                <td>{money(p.salePrice ?? p.price)}</td>
+                <td>
+                  {p.id === KEYCHAIN_STARTER_ID && !p.published && !p.price
+                    ? 'Set price'
+                    : money(p.salePrice ?? p.price)}
+                </td>
                 <td>
                   <span className="status-pill">{p.inventoryMode.replaceAll('_', ' ')}</span>
                   <p className="small muted">

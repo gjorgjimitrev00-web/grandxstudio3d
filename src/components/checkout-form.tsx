@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LockKeyhole, PackageCheck } from 'lucide-react';
 import { useCart, CartLines } from './cart-context';
+import { cartQuoteItems } from '@/lib/cart-lines';
 import { money } from '@/lib/utils';
+import { CartDeliveryProgress } from './cart-delivery';
 import { api, ApiError } from './api-form';
 import { RewardsPicker, type CheckoutRewards } from './rewards-picker';
 import { rewardsCopy } from '@/lib/rewards-copy';
@@ -39,11 +41,12 @@ type Quote = {
     quantity: number;
     unitPrice: number;
     variantName?: string;
+    selections: { optionName: string; value: string }[];
     rewardGift: boolean;
   }[];
 };
 export function FullCart() {
-  const { items, copy } = useCart();
+  const { items, copy, delivery, locale } = useCart();
   return (
     <div className="page">
       <div className="breadcrumbs">
@@ -66,6 +69,7 @@ export function FullCart() {
               <span>{copy.subtotal}</span>
               <b>{money(items.reduce((n, i) => n + i.quantity * i.price, 0))}</b>
             </div>
+            {delivery && <CartDeliveryProgress items={items} settings={delivery} locale={locale} />}
             <p className="form-note">
               Цените и доставата се потврдуваат на наплата. / Prices and delivery are confirmed at
               checkout.
@@ -100,12 +104,7 @@ export function CheckoutForm({
   const key = useRef('');
   const uncertainSubmission = useRef(false);
   const router = useRouter();
-  const cart = items.map((i) => ({
-    productId: i.productId,
-    variantId: i.variantId,
-    quantity: i.quantity,
-    options: i.options,
-  }));
+  const cart = cartQuoteItems(items);
   const cartJson = JSON.stringify(cart);
   useEffect(() => {
     const refresh = () => {
@@ -346,6 +345,11 @@ export function CheckoutForm({
               <p className="small muted">
                 {line.variantName} × {line.quantity}
               </p>
+              {line.selections.map((selection, i) => (
+                <p className="small muted" key={i}>
+                  {selection.optionName}: {selection.value}
+                </p>
+              ))}
             </div>
             <b>{money(line.unitPrice * line.quantity)}</b>
           </div>

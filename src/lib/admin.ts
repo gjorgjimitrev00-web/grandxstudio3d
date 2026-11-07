@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  getOrCreateKeychainStarter,
+  setKeychainPreview,
+  validateStarterPublication,
+} from './keychain-admin';
+import { colorHex } from './keychain-preview';
 import { db } from './db';
 import { productSchema, categorySchema, text, optionalText, amount } from './validation';
 import { HttpError, readJson, limitedForm } from './security';
@@ -15,10 +21,15 @@ export async function adminRequest(request: Request, parts: string[]) {
   if (resource === 'rewards') return rewardsAdminRequest(request, id, action);
   if (resource === 'campaigns') return campaignsAdminRequest(request, id);
   if (resource === 'products') {
+    if (method === 'POST' && id === 'keychain-starter' && !action)
+      return getOrCreateKeychainStarter();
+    if (method === 'PUT' && id && action === 'keychain-preview')
+      return setKeychainPreview(id, await readJson(request));
     if ((method === 'POST' && !id) || (method === 'PUT' && id && !action)) {
       const input = productSchema.parse(await readJson(request));
       const { categoryIds, specifications, ...data } = input;
       return db.$transaction(async (tx) => {
+        await validateStarterPublication(tx, id, data);
         if (id) {
           await tx.productCategory.deleteMany({ where: { productId: id } });
           await tx.productSpecification.deleteMany({ where: { productId: id } });
@@ -85,6 +96,7 @@ export async function adminRequest(request: Request, parts: string[]) {
               productId: clone.id,
               name: o.name,
               kind: o.kind,
+              keychainRole: o.keychainRole,
               required: o.required,
               sortOrder: o.sortOrder,
               values: { create: o.values.map((v) => ({ value: v.value, swatch: v.swatch })) },
@@ -145,6 +157,16 @@ export async function adminRequest(request: Request, parts: string[]) {
             include: { values: true },
           });
           if (!option) throw new HttpError(404, 'Option not found.');
+          if (option.keychainRole && !input.required)
+            throw new HttpError(
+              400,
+              'Keychain preview options must remain required. Disable the preview first.',
+            );
+          if (
+            option.keychainRole === 'COLOR' &&
+            input.values.some((v) => !colorHex.test(v.swatch || ''))
+          )
+            throw new HttpError(400, 'Each preview color needs a hex swatch.');
           if (option.kind === 'SELECT' && !input.values.length)
             throw new HttpError(400, 'Keep at least one choice.');
           if (option.kind === 'TEXT' && input.values.length)
@@ -206,7 +228,14 @@ export async function adminRequest(request: Request, parts: string[]) {
       if (method === 'DELETE') {
         const used = await db.variantOptionValue.count({ where: { value: { optionId: childId } } });
         if (used) throw new HttpError(409, 'Remove the associated variants first.');
-        await db.productOption.deleteMany({ where: { id: childId, productId: id } });
+        const deleted = await db.productOption.deleteMany({
+          where: { id: childId, productId: id, keychainRole: null },
+        });
+        if (
+          !deleted.count &&
+          (await db.productOption.count({ where: { id: childId, productId: id } }))
+        )
+          throw new HttpError(409, 'Disable the keychain preview before removing its options.');
         return { ok: true };
       }
     }

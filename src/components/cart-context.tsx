@@ -2,7 +2,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ShoppingBag, X, Minus, Plus, ArrowRight } from 'lucide-react';
+import type { KeychainApproval } from '@/lib/keychain-preview';
 import type { Copy } from '@/lib/i18n';
+import type { DeliveryProgressSettings } from '@/lib/cart-delivery';
+import { CartDeliveryProgress } from './cart-delivery';
 import { money } from '@/lib/utils';
 export type CartItem = {
   key: string;
@@ -13,6 +16,7 @@ export type CartItem = {
   image: string;
   variantName?: string;
   options: Record<string, string>;
+  keychain?: KeychainApproval;
   quantity: number;
   price: number;
 };
@@ -23,13 +27,30 @@ const CartContext = createContext<null | {
   clear: () => void;
   open: () => void;
   copy: Copy;
+  locale: 'mk' | 'en';
+  delivery: DeliveryProgressSettings | null;
 }>(null);
 export function useCart() {
   const ctx = useContext(CartContext);
   if (!ctx) throw Error('Cart provider missing');
   return ctx;
 }
-export function CartProvider({ children, copy }: { children: React.ReactNode; copy: Copy }) {
+export function CartProvider({
+  children,
+  copy,
+  delivery,
+  locale,
+}: {
+  children: React.ReactNode;
+  copy: Copy;
+  delivery: DeliveryProgressSettings | null;
+  locale: 'mk' | 'en';
+}) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const openDrawer = () => {
+    dialog.current?.showModal();
+    setDrawerOpen(true);
+  };
   const [items, setItems] = useState<CartItem[]>([]);
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState('');
@@ -65,6 +86,7 @@ export function CartProvider({ children, copy }: { children: React.ReactNode; co
       item.productId,
       item.variantId,
       Object.entries(item.options).sort(),
+      ...(item.keychain ? [item.keychain.name, item.keychain.color, item.keychain.hex] : []),
     ]);
     setItems((old) => {
       const found = old.find((i) => i.key === key);
@@ -75,7 +97,7 @@ export function CartProvider({ children, copy }: { children: React.ReactNode; co
         : [...old, { ...item, key }].slice(0, 50);
     });
     setNotice(copy.add + ' ✓');
-    if (showDrawer) dialog.current?.showModal();
+    if (showDrawer) openDrawer();
   }
   const update = (key: string, quantity: number) =>
     setItems((old) =>
@@ -90,7 +112,9 @@ export function CartProvider({ children, copy }: { children: React.ReactNode; co
         add,
         update,
         clear: () => setItems([]),
-        open: () => dialog.current?.showModal(),
+        open: openDrawer,
+        delivery,
+        locale,
         copy,
       }}
     >
@@ -100,6 +124,7 @@ export function CartProvider({ children, copy }: { children: React.ReactNode; co
       </div>
       <dialog
         className="cart-drawer"
+        onClose={() => setDrawerOpen(false)}
         ref={dialog}
         onClick={(e) => {
           if (e.target === dialog.current) dialog.current.close();
@@ -126,6 +151,9 @@ export function CartProvider({ children, copy }: { children: React.ReactNode; co
                 <span>{copy.subtotal}</span>
                 <b>{money(items.reduce((n, i) => n + i.price * i.quantity, 0))}</b>
               </div>
+              {drawerOpen && delivery && (
+                <CartDeliveryProgress items={items} settings={delivery} locale={locale} />
+              )}
               <p className="small muted">
                 {copy.shipping} · {copy.cod}
               </p>

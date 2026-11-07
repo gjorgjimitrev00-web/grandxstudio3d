@@ -3,7 +3,9 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { Check } from 'lucide-react';
 import { db } from '@/lib/db';
-import { currentUser, hash, secureEqual } from '@/lib/security';
+import { currentUser } from '@/lib/security';
+import { isReviewBuyer } from '@/lib/product-reviews';
+import { OrderReviews } from '@/components/order-reviews';
 import { getCopy } from '@/lib/i18n';
 import { money } from '@/lib/utils';
 export const metadata = { title: 'Order confirmation', robots: { index: false, follow: false } };
@@ -25,11 +27,8 @@ export default async function Confirmation({
   if (!order) notFound();
   const token = (await cookies()).get(`gx-order-${order.number}`)?.value;
   const user = await currentUser();
-  if (
-    !(token && secureEqual(hash(token), order.accessTokenHash)) &&
-    !(user && (user.role === 'ADMIN' || order.customer.userId === user.id))
-  )
-    notFound();
+  const buyer = isReviewBuyer(order, token, user?.id);
+  if (!buyer && user?.role !== 'ADMIN') notFound();
   const copy = await getCopy();
   return (
     <div className="page confirmation">
@@ -135,6 +134,9 @@ export default async function Confirmation({
           </div>
         </div>
       </div>
+      {buyer && order.status === 'DELIVERED' && (
+        <OrderReviews orderId={order.id} number={order.number} items={order.items} />
+      )}
       <Link href="/shop" className="text-link centered">
         {copy.continue} ↗
       </Link>

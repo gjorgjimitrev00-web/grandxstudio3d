@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { getCopy } from '@/lib/i18n';
 import { ProductDetail } from '@/components/product-detail';
 import { ProductCard } from '@/components/product-card';
+import { ProductReviews } from '@/components/product-reviews';
 import { safeJsonLd, siteUrl, serialize } from '@/lib/utils';
 import { rewardsSettings } from '@/lib/rewards';
 import { storefrontProductWhere } from '@/lib/catalog-visibility';
@@ -42,7 +43,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     },
   };
 }
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ reviewsPage?: string }>;
+}) {
   const p = await getProduct((await params).slug);
   if (!p) notFound();
   const copy = await getCopy();
@@ -140,6 +147,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </Link>
         </div>
       </div>
+      <ProductReviews
+        productId={p.id}
+        slug={p.slug}
+        requestedPage={(await searchParams).reviewsPage}
+      />
       {related.length > 0 && (
         <section className="related">
           <div className="section-heading">

@@ -38,6 +38,8 @@ export function Header({
     ['/shop', copy.shop],
     ['/custom-frames', locale === 'en' ? 'Custom frames' : 'Рамки по мерка'],
     ['/categories', copy.categories],
+    ['/gift-finder', locale === 'en' ? 'Gift finder' : 'Најди подарок'],
+    ['/event-orders', locale === 'en' ? 'Events & business' : 'Настани и компании'],
     ['/custom-order', copy.custom],
     ['/about', copy.about],
     ['/contact', copy.contact],
@@ -61,7 +63,9 @@ export function Header({
           aria-label={locale === 'en' ? 'Main navigation' : 'Главна навигација'}
         >
           {links
-            .filter(([href]) => href !== '/' && href !== '/categories')
+            .filter(
+              ([href]) => !['/', '/categories', '/gift-finder', '/event-orders'].includes(href),
+            )
             .map(([href, label]) => (
               <Link href={href} key={href} aria-current={pathname === href ? 'page' : undefined}>
                 {label}

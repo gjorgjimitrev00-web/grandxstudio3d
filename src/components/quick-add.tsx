@@ -1,5 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { keychainOptions } from '@/lib/keychain-preview';
 import { Plus, X } from 'lucide-react';
 import type { Copy } from '@/lib/i18n';
 import type { DetailProduct } from './product-detail';
@@ -15,6 +17,7 @@ export function QuickAdd({ id, name, copy }: { id: string; name: string; copy: C
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const { add } = useCart();
+  const router = useRouter();
   const v = p?.variants.find((v) => v.id === variantId);
   const price = p ? productPrice(p, v).price : 0;
   const unavailable =
@@ -34,6 +37,11 @@ export function QuickAdd({ id, name, copy }: { id: string; name: string; copy: C
           dialog.current?.showModal();
           try {
             const product = await api(`/api/catalog/${id}`, 'GET');
+            if (keychainOptions(product.options)) {
+              dialog.current?.close();
+              router.push('/product/' + product.slug);
+              return;
+            }
             setProduct(product);
             setVariantId(
               product.variants.find(

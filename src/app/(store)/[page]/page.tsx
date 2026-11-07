@@ -51,6 +51,20 @@ export default async function ContentPage({ params }: { params: Promise<{ page: 
           </section>
         )}
         {page === 'privacy' && (
+          <section>
+            <h2>
+              {locale === 'en'
+                ? 'Event requests and product reviews'
+                : 'Понуди за настани и рецензии'}
+            </h2>
+            <p>
+              {locale === 'en'
+                ? 'The studio uses the logo and list of names you supply to prepare your event order. Share your private quote link only with people who may see and approve your sample. Product reviews are optional. If you consent to publication, your approved rating, review and optional photo appear on the product page without your name or order number.'
+                : 'Студиото го користи логото и списокот со имиња што ги доставуваш за изработка на нарачката за настан. Приватниот линк сподели го само со лица кои смеат да го видат и одобрат примерокот. Рецензиите се по избор. Со твоја согласност, одобрената оценка, рецензија и евентуалната фотографија се објавуваат на страницата на производот без твоето име или бројот на нарачката.'}
+            </p>
+          </section>
+        )}
+        {page === 'privacy' && (
           <AnalyticsPrivacy locale={locale} enabled={s.analyticsEnabled !== 'false'} />
         )}
       </div>

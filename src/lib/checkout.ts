@@ -1,4 +1,10 @@
 import { Prisma, OrderStatus } from '@prisma/client';
+import {
+  keychainOptions,
+  keychainSelection,
+  sameKeychain,
+  validKeychainName,
+} from './keychain-preview';
 import { z } from 'zod';
 import { db } from './db';
 import { cartSchema, checkoutSchema } from './validation';
@@ -48,6 +54,19 @@ async function quoteProducts(tx: Tx, items: z.infer<typeof cartSchema>, shipping
       throw new HttpError(400, `${p.name}: insufficient stock.`);
     const unitPrice = productPrice(p, v).price;
     if (unitPrice < 0 || unitPrice > 10000000) throw new HttpError(400, 'Invalid product price.');
+    const preview = keychainOptions(p.options);
+    const approved = preview && keychainSelection(preview, item.options, v?.values);
+    if (approved && (!validKeychainName(approved.name) || !sameKeychain(item.keychain, approved))) {
+      throw new HttpError(
+        400,
+        'Повторно избери ги името и бојата на производот. / Reopen this product and approve its current name and color.',
+      );
+    }
+    if (item.keychain && !approved)
+      throw new HttpError(
+        400,
+        'Овој преглед е променет. / This preview is no longer available. Reopen the product.',
+      );
     const selections: { optionName: string; value: string }[] = [];
     for (const key of Object.keys(item.options))
       if (!p.options.some((o) => o.id === key))
@@ -60,7 +79,13 @@ async function quoteProducts(tx: Tx, items: z.infer<typeof cartSchema>, shipping
         throw new HttpError(400, `Invalid ${option.name}.`);
       if (fromVariant && item.options[option.id] && item.options[option.id] !== fromVariant.value)
         throw new HttpError(400, 'Variant and option do not match.');
-      if (chosen) selections.push({ optionName: option.name, value: chosen });
+      if (chosen) {
+        let value = chosen;
+        if (approved && option.keychainRole === 'NAME') value = approved.name;
+        if (approved && option.keychainRole === 'COLOR')
+          value = approved.color + ' (' + approved.hex + ')';
+        selections.push({ optionName: option.name, value });
+      }
     }
     return {
       productId: p.id,

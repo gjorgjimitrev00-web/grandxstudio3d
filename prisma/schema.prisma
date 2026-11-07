@@ -111,6 +111,7 @@ model Address {
 }
 
 model Product {
+  giftProfile       GiftProfile?
   id                String                 @id @default(cuid())
   name              String
   slug              String                 @unique @db.VarChar(191)
@@ -135,6 +136,7 @@ model Product {
   variants          ProductVariant[]
   specifications    ProductSpecification[]
   orderItems        OrderItem[]
+  reviews           ProductReview[]
   rewardGift        RewardGift?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
@@ -202,8 +204,10 @@ model ProductOption {
   kind      OptionKind           @default(SELECT)
   required  Boolean              @default(true)
   sortOrder Int                  @default(0)
+  keychainRole String?            @db.VarChar(8)
   values    ProductOptionValue[]
 
+  @@unique([productId, keychainRole])
   @@index([productId])
 }
 
@@ -261,6 +265,9 @@ model ShippingMethod {
 }
 
 model Order {
+  productionDue      String? @db.Char(10)
+  productionStation  String? @db.VarChar(12)
+  productionMaterial String? @db.VarChar(120)
   id               String               @id @default(cuid())
   number           String               @unique @db.VarChar(40)
   accessTokenHash  String               @db.Char(64)
@@ -306,6 +313,8 @@ model Order {
   internalNotes    String?              @db.Text
   stockRestored    Boolean              @default(false)
   items            OrderItem[]
+  reviews          ProductReview[]
+  eventRequest     EventOrderRequest?
   history          OrderStatusHistory[]
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
@@ -383,6 +392,9 @@ model OrderSequence {
 }
 
 model CustomPrintRequest {
+  productionDue      String? @db.Char(10)
+  productionStation  String? @db.VarChar(12)
+  productionMaterial String? @db.VarChar(120)
   id            String            @id @default(cuid())
   name          String
   email         String
@@ -545,6 +557,9 @@ model ChatPresence {
 }
 
 model FrameOrder {
+  productionDue      String? @db.Char(10)
+  productionStation  String? @db.VarChar(12)
+  productionMaterial String? @db.VarChar(120)
   id             String            @id @default(cuid())
   reference      String            @unique @db.VarChar(32)
   idempotencyKey String            @unique @db.Char(36)
@@ -581,4 +596,83 @@ model FrameAssetChunk {
   order    FrameOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@id([orderId, kind, position])
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ProductReview {
+  id          String              @id @default(cuid())
+  orderId     String
+  order       Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating      Int
+  body        String              @db.Text
+  consentAt   DateTime
+  status      ReviewStatus        @default(PENDING)
+  photo       ProductReviewPhoto?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([orderId, productId])
+  @@index([productId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model ProductReviewPhoto {
+  reviewId String        @id
+  review   ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  data     Bytes         @db.MediumBlob
+}
+
+model EventOrderRequest {
+  id              String          @id @default(cuid())
+  requestKey      String          @unique @db.Char(36)
+  fingerprint     String          @db.Char(64)
+  userId          String?
+  productId       String?
+  productName     String
+  name            String
+  company         String?
+  phone           String          @db.VarChar(40)
+  email           String          @db.VarChar(191)
+  quantity        Int
+  eventDate       String          @db.Char(10)
+  notes           String          @db.Text
+  names           String?         @db.MediumText
+  status          RequestStatus   @default(NEW)
+  revision        Int             @default(0)
+  unitPrice       Int?
+  shipping        Int?
+  shippingId      String?
+  shippingName    String?
+  readyBy         String?         @db.Char(10)
+  quoteNotes      String?         @db.Text
+  orderId         String?         @unique
+  order           Order?          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  assets          EventOrderAsset[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status, eventDate])
+}
+
+model EventOrderAsset {
+  requestId String
+  kind      String            @db.VarChar(12)
+  data      Bytes             @db.MediumBlob
+  request   EventOrderRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@id([requestId, kind])
+}
+
+model GiftProfile {
+  productId  String   @id
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  occasions  Json
+  recipients Json
 }

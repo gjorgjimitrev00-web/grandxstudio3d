@@ -146,6 +146,31 @@ export default async function Home() {
           {copy.cod}
         </span>
       </div>
+      <nav
+        className="studio-discovery"
+        aria-label={en ? 'Explore the studio' : 'Разгледај го студиото'}
+      >
+        <Link href="/gift-finder">
+          <div>
+            <strong>{en ? 'Find a gift' : 'Најди подарок'}</strong>
+            <small>
+              {en ? 'By occasion, recipient and budget' : 'Избери повод, за кого е и буџет'}
+            </small>
+          </div>
+          <ArrowUpRight aria-hidden="true" size={22} />
+        </Link>
+        <Link href="/event-orders">
+          <div>
+            <strong>{en ? 'Events & business' : 'За настани и компании'}</strong>
+            <small>
+              {en
+                ? 'Request a sample and a bulk quote'
+                : 'Побарај примерок и понуда за повеќе парчиња'}
+            </small>
+          </div>
+          <ArrowUpRight aria-hidden="true" size={22} />
+        </Link>
+      </nav>
       <section className="section">
         <div className="section-heading">
           <div>

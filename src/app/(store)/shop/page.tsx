@@ -132,6 +132,11 @@ export default async function Shop({
                   : 'Black Friday моментално не е активен. Разгледај ја целата колекција.'
               : copy.featuredSub}
           </p>
+          {!offerOnly && (
+            <Link className="text-link" href="/gift-finder">
+              {en ? 'Find a gift' : 'Најди подарок'} ↗
+            </Link>
+          )}
           {offerOnly && activeOffer && (
             <p className="small muted">
               {en ? 'Through ' : 'До '}

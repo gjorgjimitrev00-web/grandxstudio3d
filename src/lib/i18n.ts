@@ -1,6 +1,12 @@
 import { cookies } from 'next/headers';
 export const dictionaries = {
   mk: {
+    keychainTitle: 'Преглед на приврзокот',
+    keychainPlaceholder: 'Твоето име',
+    keychainHint: 'Илустративен изглед. Внеси до 16 букви, бројки или знаци како цртичка и апостроф.',
+    keychainApprove: 'Ги одобрувам името и бојата за печатење.',
+    keychainInvalid: 'Внеси име до 16 знаци, избери боја и одобри го прегледот.',
+
     home: 'Почетна',
     shop: 'Продавница',
     categories: 'Категории',
@@ -91,6 +97,12 @@ export const dictionaries = {
     address: 'Зачувана адреса',
   },
   en: {
+    keychainTitle: 'Keychain preview',
+    keychainPlaceholder: 'Your name',
+    keychainHint: 'Illustrative preview. Use up to 16 characters, including letters, numbers, hyphens and apostrophes.',
+    keychainApprove: 'I approve this name and color for printing.',
+    keychainInvalid: 'Enter a name of up to 16 characters, choose a color and approve the preview.',
+
     home: 'Home',
     shop: 'Shop',
     categories: 'Categories',

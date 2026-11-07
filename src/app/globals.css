@@ -3495,3 +3495,72 @@ select:focus {
     width: 100%;
   }
 }
+
+.studio-discovery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 30px var(--gutter) 0;
+}
+.studio-discovery a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px 24px;
+  background: var(--paper);
+}
+.studio-discovery a:hover,
+.studio-discovery a:focus-visible {
+  border-color: var(--brand-ink);
+}
+.studio-discovery strong,
+.studio-discovery small {
+  display: block;
+}
+.studio-discovery strong {
+  font-size: 20px;
+}
+.studio-discovery small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+.delivery-progress {
+  margin: 14px 0;
+  color: var(--ink);
+}
+.delivery-progress > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.delivery-progress progress {
+  display: block;
+  width: 100%;
+  height: 7px;
+  border: 0;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--line);
+  margin-top: 9px;
+  accent-color: var(--brand);
+}
+.delivery-progress progress::-webkit-progress-bar {
+  background: var(--line);
+}
+.delivery-progress progress::-webkit-progress-value {
+  background: var(--brand);
+}
+@media (max-width: 650px) {
+  .studio-discovery {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .studio-discovery a {
+    padding: 15px 18px;
+  }
+}

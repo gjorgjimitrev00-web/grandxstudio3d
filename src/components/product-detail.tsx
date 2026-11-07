@@ -2,6 +2,15 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Minus, ArrowUpRight, Truck, PackageCheck, ZoomIn, X, Layers3 } from 'lucide-react';
+import { KeychainPreview } from './keychain-preview';
+import {
+  keychainOptions,
+  keychainSelection,
+  validKeychainName,
+  sameKeychain,
+  MAX_KEYCHAIN_NAME,
+  type KeychainApproval,
+} from '@/lib/keychain-preview';
 import type { Copy } from '@/lib/i18n';
 import { money } from '@/lib/utils';
 import { useCart } from './cart-context';
@@ -23,6 +32,7 @@ export type DetailProduct = {
     name: string;
     kind: string;
     required: boolean;
+    keychainRole: string | null;
     values: { id: string; value: string; swatch: string | null }[];
   }[];
   variants: {
@@ -42,6 +52,7 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
     p.variants.find((v) => v.enabled);
   const [variantId, setVariant] = useState(initial?.id || '');
   const [options, setOptions] = useState<Record<string, string>>({});
+  const [approval, setApproval] = useState<KeychainApproval | null>(null);
   const [qty, setQty] = useState(1);
   const [index, setIndex] = useState(0);
   const [imageOverride, setImageOverride] = useState(initial?.image || '');
@@ -50,6 +61,9 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
   const { add } = useCart();
   const router = useRouter();
   const variant = p.variants.find((v) => v.id === variantId);
+  const previewOptions = keychainOptions(p.options);
+  const design = previewOptions && keychainSelection(previewOptions, options, variant?.values);
+  const approved = !!design && sameKeychain(approval, design);
   const { price, regularPrice, blackFriday } = productPrice(p, variant);
   const stock = variant?.stock ?? p.stock;
   const unavailable =
@@ -58,6 +72,7 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
     (p.variants.length > 0 && !variant);
   const image = imageOverride || p.images[index]?.url || '/favicon.svg';
   function changeVariant(id: string) {
+    setApproval(null);
     setVariant(id);
     setImageOverride(p.variants.find((v) => v.id === id)?.image || '');
     setQty(1);
@@ -76,8 +91,17 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
     if (next) changeVariant(next.id);
     else setError(copy.outOfStock);
   }
+  function chooseOption(id: string, value: string) {
+    setApproval(null);
+    setError('');
+    setOptions((old) => ({ ...old, [id]: value }));
+  }
   function addItem(buy = false) {
     setError('');
+    if (design && (!approved || !validKeychainName(design.name))) {
+      setError(copy.keychainInvalid);
+      return;
+    }
     for (const o of p.options) {
       if (o.required && !variant?.values.some((v) => v.value.optionId === o.id) && !options[o.id]) {
         setError(`${o.name}: required`);
@@ -94,7 +118,15 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
         variantName: variant?.name,
         quantity: qty,
         price,
-        options,
+        options:
+          design && previewOptions
+            ? {
+                ...options,
+                [previewOptions.text.id]: design.name,
+                [previewOptions.color.id]: design.color,
+              }
+            : options,
+        ...(design ? { keychain: design } : {}),
       },
       !buy,
     );
@@ -168,10 +200,10 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
               {o.kind === 'TEXT' ? (
                 <input
                   aria-label={o.name}
-                  maxLength={200}
+                  maxLength={o.keychainRole === 'NAME' ? MAX_KEYCHAIN_NAME : 200}
                   required={o.required}
                   value={options[o.id] || ''}
-                  onChange={(e) => setOptions({ ...options, [o.id]: e.target.value })}
+                  onChange={(e) => chooseOption(o.id, e.target.value)}
                 />
               ) : (
                 <div className="swatches">
@@ -189,9 +221,7 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
                         aria-pressed={selected}
                         title={v.value}
                         onClick={() =>
-                          isVariant
-                            ? selectValue(o.id, v.id)
-                            : setOptions({ ...options, [o.id]: v.value })
+                          isVariant ? selectValue(o.id, v.id) : chooseOption(o.id, v.value)
                         }
                       >
                         {v.swatch && <span style={{ background: v.swatch }} />}
@@ -217,6 +247,17 @@ export function ProductDetail({ product: p, copy }: { product: DetailProduct; co
                   ))}
               </select>
             </label>
+          )}
+          {design && (
+            <KeychainPreview
+              design={design}
+              copy={copy}
+              approved={approved}
+              onApprove={(allow) => {
+                setApproval(allow ? design : null);
+                setError('');
+              }}
+            />
           )}
           <div className="row">
             <div className="quantity">

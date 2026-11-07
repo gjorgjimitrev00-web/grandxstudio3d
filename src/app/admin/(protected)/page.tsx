@@ -90,6 +90,10 @@ export default async function Dashboard() {
           Visitors by city ↗
         </Link>
       </div>
+      <Link className="custom-request-callout" href="/admin/production">
+        <b>Production queue</b>
+        <span>Plan today’s printing and packing ↗</span>
+      </Link>
       <div className="admin-section">
         <h2>Order pipeline</h2>
         <div className="pipeline">

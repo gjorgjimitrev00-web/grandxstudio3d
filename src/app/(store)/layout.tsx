@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { db } from '@/lib/db';
+import { deliveryProgressSettings } from '@/lib/cart-delivery';
 import { Header, Logo } from '@/components/header';
 import { CartProvider } from '@/components/cart-context';
 import { getCopy, getLocale } from '@/lib/i18n';
@@ -10,15 +12,19 @@ import { CampaignRefresh } from '@/components/campaign-refresh';
 import { VisitorTracker } from '@/components/visitor-tracker';
 export const dynamic = 'force-dynamic';
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [copy, locale, s, campaign] = await Promise.all([
+  const [copy, locale, s, campaign, methods] = await Promise.all([
     getCopy(),
     getLocale(),
     getSettings(),
     getBlackFriday(),
+    db.shippingMethod.findMany({
+      where: { country: 'MK', enabled: true },
+      select: { id: true, kind: true, freeThreshold: true, price: true },
+    }),
   ]);
   const status = campaignStatus(campaign);
   return (
-    <CartProvider copy={copy}>
+    <CartProvider copy={copy} delivery={deliveryProgressSettings(methods)} locale={locale}>
       <a className="skip-link" href="#main">
         Skip to content
       </a>
@@ -61,6 +67,10 @@ export default async function StoreLayout({ children }: { children: React.ReactN
               {locale === 'en' ? 'Custom frames' : 'Рамки по мерка'}
             </Link>
             <Link href="/custom-order">{copy.custom}</Link>
+            <Link href="/gift-finder">{locale === 'en' ? 'Gift finder' : 'Најди подарок'}</Link>
+            <Link href="/event-orders">
+              {locale === 'en' ? 'Events & business' : 'Настани и компании'}
+            </Link>
             <Link href="/rewards">GrandX Rewards</Link>
           </div>
           <div>

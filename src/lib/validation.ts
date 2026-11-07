@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { colorHex, keychainName, validKeychainName } from './keychain-preview';
 import { rewardSelectionSchema } from './rewards-rules';
 export const email = z.email().trim().toLowerCase().max(191);
 export const password = z
@@ -14,12 +15,21 @@ export const slug = z
 export const text = (max = 200) => z.string().trim().min(1).max(max);
 export const optionalText = (max = 2000) => z.string().trim().max(max).optional().default('');
 export const amount = z.number().int().min(0).max(10000000);
+export const keychainApprovalSchema = z.object({
+  name: z.string().transform(keychainName).refine(validKeychainName),
+  color: z.string().min(1).max(100),
+  hex: z
+    .string()
+    .regex(colorHex)
+    .transform((value) => value.toUpperCase()),
+});
 export const cartSchema = z
   .array(
     z.object({
       productId: text(100),
       variantId: z.string().max(100).optional(),
       quantity: z.number().int().min(1).max(99),
+      keychain: keychainApprovalSchema.optional(),
       options: z.record(z.string().max(100), z.string().trim().max(200)).default({}),
     }),
   )

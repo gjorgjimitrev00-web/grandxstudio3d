@@ -1,0 +1,79 @@
+.queue-filters,
+.queue-plan form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+.queue-filters label,
+.queue-plan label {
+  flex: 1 1 135px;
+}
+.queue-group {
+  margin-top: 28px;
+}
+.queue-group h2 {
+  margin-bottom: 12px;
+}
+.queue-group small {
+  color: var(--muted);
+  font-size: 16px;
+}
+.queue-job {
+  margin-bottom: 12px;
+}
+.queue-job-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+.queue-job-main > b {
+  color: var(--brand-ink);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.queue-job h3 {
+  font-size: 18px;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.queue-job dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.queue-job dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.queue-job dd {
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+.queue-plan {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.queue-plan summary {
+  cursor: pointer;
+  font-size: 14px;
+}
+.queue-plan span {
+  width: 100%;
+}
+.queue-job .row {
+  flex-wrap: wrap;
+}
+@media (max-width: 650px) {
+  .queue-job dl {
+    grid-template-columns: 1fr 1fr;
+  }
+  .queue-job-main {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

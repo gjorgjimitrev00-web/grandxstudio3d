@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import lettering from './frame-type/lettering.json';
+import sansSupplement from './frame-type/sans-supplement.json';
 
 // Page dimensions are finished paper dimensions. The preview and the PDF share this scene.
 export const FRAME_SIZES = {
@@ -12,8 +13,25 @@ export const FRAME_SIZES = {
   'A3+': { widthMm: 329, heightMm: 483 },
 } as const;
 export type FrameSize = keyof typeof FRAME_SIZES;
-export const FRAME_PHOTO_COUNTS = { love: 4, story: 1, moments: 3, custom: 1 } as const;
+export const FRAME_PHOTO_COUNTS = {
+  love: 4,
+  story: 1,
+  moments: 3,
+  anniversary: 2,
+  baptism: 1,
+  birthday: 1,
+  custom: 1,
+} as const;
 export type FrameTemplate = keyof typeof FRAME_PHOTO_COUNTS;
+export const FRAME_PHOTO_MATS: Record<FrameTemplate, string> = {
+  love: '#FFF8ED',
+  story: '#FFF8F0',
+  moments: '#2f3330',
+  anniversary: '#F2E9D8',
+  baptism: '#F3F0E6',
+  birthday: '#FFFBF1',
+  custom: '#ffffff',
+};
 export const FRAME_FILE_MAX = 12 * 1024 * 1024;
 export const FRAME_FILES_MAX = 32 * 1024 * 1024;
 export const FRAME_MIN_PPI = 150;
@@ -23,7 +41,19 @@ export const FRAME_TARGET_PPI = 300;
 // em units. Thus browser and print have identical glyphs even on hosts without any fonts.
 type Face = 'display' | 'italic' | 'sans';
 type Font = { glyphs: Record<string, [number, string]>; kern: Record<string, number> };
-const fonts = lettering as unknown as Record<Face, Font>;
+const originalFonts = lettering as unknown as Record<Face, Font>;
+// The studio's Jost file lacks several Cyrillic letters. Matching Latin forms and
+// additional OFL Noto Sans outlines keep those dates printable in both renderers.
+const fonts = {
+  ...originalFonts,
+  sans: {
+    ...originalFonts.sans,
+    glyphs: {
+      ...originalFonts.sans.glyphs,
+      ...z.record(z.string(), z.tuple([z.number(), z.string()])).parse(sansSupplement),
+    },
+  },
+};
 const inputText = (length: number, face: Face) =>
   z
     .string()
@@ -39,6 +69,7 @@ export const frameDesignSchema = z
   .object({
     size: z.enum(Object.keys(FRAME_SIZES) as [FrameSize, ...FrameSize[]]),
     template: z.enum(Object.keys(FRAME_PHOTO_COUNTS) as [FrameTemplate, ...FrameTemplate[]]),
+    locale: z.enum(['mk', 'en']).optional(),
     names: inputText(60, 'display'),
     date: inputText(32, 'sans'),
     caption: inputText(100, 'italic'),
@@ -70,6 +101,12 @@ const defaultCrop: FrameCrop = { zoom: 1, panX: 0.5, panY: 0.5 };
 const loveBox = { x: 5, y: 5, w: 109, h: 74 };
 const storyBox = { x: 33, y: 137, w: 231, h: 174 };
 const momentsBoxes = [56, 145, 234].map((y) => ({ x: 48, y, w: 201, h: 76 }));
+const anniversaryBoxes = [
+  { x: 24, y: 100, w: 119, h: 155 },
+  { x: 154, y: 117, w: 119, h: 155 },
+];
+const baptismBox = { x: 63, y: 85, w: 171, h: 195 };
+const birthdayBox = { x: 50, y: 106, w: 197, h: 162 };
 const cards = [
   { x: 25, y: 124, angle: -3, label: '01 / THE LITTLE THINGS' },
   { x: 154, y: 127, angle: 3, label: '02 / YOU + ME' },
@@ -99,6 +136,9 @@ function boxes(design: FrameDesign): Box[] {
   if (design.template === 'love') return cards.map(() => loveBox);
   if (design.template === 'story') return [storyBox];
   if (design.template === 'moments') return momentsBoxes;
+  if (design.template === 'anniversary') return anniversaryBoxes;
+  if (design.template === 'baptism') return [baptismBox];
+  if (design.template === 'birthday') return [birthdayBox];
   const { w, h } = sheet(design);
   return [{ x: 0, y: 0, w, h }];
 }
@@ -170,18 +210,22 @@ function image(
   box: Box,
   index: number,
   contain = false,
+  silhouette?: { path: string; mat: string },
 ) {
   const clip = `frame-clip-${index}-${[box.x, box.y, box.w, box.h].join('-').replace(/\./g, '_')}`;
-  const placeholder = rectangle(box.x, box.y, box.w, box.h, '#edd9d7');
+  const aperture = (fill: string) =>
+    silhouette
+      ? `<path d="${silhouette.path}" fill="${fill}"/>`
+      : rectangle(box.x, box.y, box.w, box.h, fill);
   if (
     !photo ||
     photo.width <= 0 ||
     photo.height <= 0 ||
     !/^(?:blob:|data:image\/(?:png|jpeg|webp);base64,|\/(?!\/))/.test(photo.src)
   )
-    return placeholder;
+    return aperture(silhouette?.mat ?? '#edd9d7');
   const p = placement(photo, crop, box, contain);
-  return `<defs><clipPath id="${clip}">${rectangle(box.x, box.y, box.w, box.h, 'white')}</clipPath></defs><g clip-path="url(#${clip})"><image x="${round(p.x)}" y="${round(p.y)}" width="${round(p.w)}" height="${round(p.h)}" preserveAspectRatio="none" xlink:href="${escape(photo.src)}"/></g>`;
+  return `<defs><clipPath id="${clip}">${aperture('white')}</clipPath></defs><g clip-path="url(#${clip})">${silhouette ? aperture(silhouette.mat) : ''}<image x="${round(p.x)}" y="${round(p.y)}" width="${round(p.w)}" height="${round(p.h)}" preserveAspectRatio="none" xlink:href="${escape(photo.src)}"/></g>`;
 }
 const cherry = '#BC213D',
   cream = '#FFF8ED';
@@ -303,6 +347,137 @@ function moments(design: FrameDesign, photos: readonly (FramePhoto | null)[]) {
     text(design.caption, 'italic', 7.3, 148.5, 390, 245, ink),
   ].join('');
 }
+
+function dedication(value: string, baseline: number, color: string) {
+  // Long dedications are more legible on small prints when set on two balanced lines.
+  const spaces = [...value.matchAll(/\s+/g)].map((match) => match.index);
+  const middle = spaces.reduce<number | undefined>(
+    (best, index) =>
+      best === undefined || Math.abs(index - value.length / 2) < Math.abs(best - value.length / 2)
+        ? index
+        : best,
+    undefined,
+  );
+  const lines =
+    value.length > 38 && middle !== undefined
+      ? [value.slice(0, middle).trim(), value.slice(middle).trim()]
+      : [value];
+  return lines
+    .map((line, i) => text(line, 'italic', 8.4, 148.5, baseline + i * 11, 232, color))
+    .join('');
+}
+
+function anniversary(design: FrameDesign, photos: readonly (FramePhoto | null)[]) {
+  const ivory = FRAME_PHOTO_MATS.anniversary;
+  const gold = '#D3B383';
+  const plates = anniversaryBoxes.map((box, i) =>
+    [
+      rectangle(box.x - 2, box.y - 2, box.w + 4, box.h + 4, ivory),
+      photos[i] ? image(photos[i], design.crops[i] || defaultCrop, box, i) : '',
+    ].join(''),
+  );
+  return [
+    rectangle(11, 11, 275, 398, 'none', gold, 0.55),
+    // Offset ellipses give the paired portraits a single, understated ring motif.
+    `<g fill="none" stroke="${gold}" stroke-width="1.05"><ellipse cx="143" cy="36" rx="10" ry="8" transform="rotate(-27 143 36)"/><ellipse cx="154" cy="36" rx="10" ry="8" transform="rotate(27 154 36)"/></g>`,
+    text(design.locale === 'en' ? 'Anniversary' : 'Годишнина', 'italic', 32, 148.5, 78, 241, ivory),
+    ...plates,
+    `<path d="M24 277 H118 M179 97 H273" fill="none" stroke="${gold}" stroke-width=".55"/>`,
+    text(design.names, 'display', 22, 148.5, 317, 247, ivory),
+    text(design.date, 'sans', 7.4, 148.5, 341, 229, gold, 0.55),
+    dedication(design.caption, 367, ivory),
+    `<path d="M96 392 H144 M153 392 H201 M148.5 389.8 l2.2 2.2 -2.2 2.2 -2.2 -2.2 Z" fill="none" stroke="${gold}" stroke-width=".6"/>`,
+  ].join('');
+}
+
+const baptismArch = 'M63 280 V170.5 a85.5 85.5 0 0 1 171 0 V280 Z';
+function oliveSprig(mirrored: boolean) {
+  // Each pair of tapered leaves follows its own part of the curved stem.
+  const leaves = [
+    [45, 264, -54],
+    [45, 264, -3],
+    [40, 250, -58],
+    [40, 249, 0],
+    [37, 236, -46],
+    [37, 235, 13],
+    [36, 222, -35],
+    [36, 221, 22],
+    [36.5, 212, 4],
+  ];
+  return `<g${mirrored ? ' transform="translate(297 0) scale(-1 1)"' : ''}>
+    <path d="M55 281 Q31 250 37 208" fill="none" stroke="#5D6F5C" stroke-width="1.1" stroke-linecap="round"/>
+    ${leaves.map(([x, y, angle]) => `<path transform="translate(${x} ${y}) rotate(${angle})" d="M0 0 Q-3.7 -8 .7 -15 Q5 -8 0 0 Z" fill="#829683"/>`).join('')}
+  </g>`;
+}
+function baptism(design: FrameDesign, photos: readonly (FramePhoto | null)[]) {
+  const ink = '#364C43',
+    gold = '#A5895D';
+  return [
+    // A fine outer arch echoes the silhouette of the photographic aperture.
+    `<path d="M58 287 V170.5 a90.5 90.5 0 0 1 181 0 V287 Z" fill="none" stroke="${gold}" stroke-width=".65"/>`,
+    image(photos[0], design.crops[0] || defaultCrop, baptismBox, 0, false, {
+      path: baptismArch,
+      mat: FRAME_PHOTO_MATS.baptism,
+    }),
+    oliveSprig(false),
+    oliveSprig(true),
+    `<g fill="none" stroke="${gold}" stroke-linecap="round"><path d="M148.5 16 V36 M142.5 23 H154.5" stroke-width="1.4"/><path d="M135 20 l-2 -1 M162 20 l2 -1 M136 14 l-1.5 -2 M161 14 l1.5 -2" stroke-width=".6"/></g>`,
+    text(
+      design.locale === 'en' ? 'Holy Baptism' : 'Свето крштение',
+      'display',
+      22.7,
+      148.5,
+      62,
+      246,
+      ink,
+    ),
+    text(design.names, 'italic', 24.5, 148.5, 324, 239, ink),
+    text(design.date, 'sans', 7.1, 148.5, 345, 229, ink, 0.55),
+    dedication(design.caption, 368, ink),
+    `<path d="M118 396 Q135 396 143 392 M154 392 Q162 396 179 396" fill="none" stroke="${gold}" stroke-width=".7"/><circle cx="148.5" cy="392" r="1.4" fill="${gold}"/>`,
+  ].join('');
+}
+
+const birthdayWindow =
+  'M58 106 H239 Q247 106 247 114 V260 Q247 268 239 268 H58 Q50 268 50 260 V114 Q50 106 58 106 Z';
+function balloon(x: number, y: number, angle: number, fill: string, accent: string) {
+  return `<g transform="translate(${x} ${y}) rotate(${angle})">
+    <path d="M0 19 C-8 34 10 45 1 65" fill="none" stroke="#665843" stroke-width=".85"/>
+    <path d="M0 18 C-6 13 -13 5 -13 -4 C-13 -22 13 -22 13 -4 C13 5 6 13 0 18 Z M0 16 l-2 4 h4 Z" fill="${fill}"/>
+    <path d="M-5 -14 Q-12 -4 -6 5" fill="none" stroke="${accent}" stroke-width="1.15" stroke-linecap="round"/>
+  </g>`;
+}
+function birthday(design: FrameDesign, photos: readonly (FramePhoto | null)[]) {
+  const ink = '#273F46';
+  return [
+    // A single curved cord and folded paper pennants across the top of the print.
+    `<path d="M13 13 Q148.5 42 284 13" fill="none" stroke="#8C7055" stroke-width=".85"/>
+     <path d="M36 18 l13 2.3 -8 13 Z M172 26 l13 -.6 -5.6 14 Z" fill="#CE7458"/>
+     <path d="M69 23 l13 1.7 -7.8 12.8 Z M206 23.7 l13 -1.6 -5 13 Z" fill="#759798"/>
+     <path d="M104 26 l13 .6 -7 13 Z M242 18.7 l13 -2.3 -4.8 13 Z" fill="#D8A541"/>`,
+    text(
+      design.locale === 'en' ? 'Happy birthday!' : 'Среќен роденден!',
+      'display',
+      28,
+      148.5,
+      77,
+      255,
+      ink,
+    ),
+    '<rect x="46" y="102" width="205" height="170" rx="11" fill="#FFFBF1" stroke="#C3A979" stroke-width=".65"/>',
+    image(photos[0], design.crops[0] || defaultCrop, birthdayBox, 0, false, {
+      path: birthdayWindow,
+      mat: FRAME_PHOTO_MATS.birthday,
+    }),
+    balloon(25, 133, -9, '#D68661', '#F0BE99'),
+    balloon(274, 226, 9, '#799B99', '#B8CDC0'),
+    `<g fill="none" stroke-linecap="round" stroke-width="1.15"><path d="M29 233 l2 4 M39 244 l4 -2 M260 145 l3 -4" stroke="#BC7751"/><path d="M20 253 l4 -1 M267 169 l3 2 M277 144 l1 -4" stroke="#688A89"/></g>`,
+    text(design.names, 'display', 25, 148.5, 318, 246, ink),
+    text(design.date, 'sans', 7.3, 148.5, 341, 228, ink, 0.55),
+    dedication(design.caption, 366, ink),
+    '<g fill="none" stroke-width="1.05" stroke-linecap="round"><path d="M126 395 Q137 384 148.5 395 T171 395" stroke="#C8785C"/><path d="M126 398 Q137 387 148.5 398 T171 398" stroke="#7C9B95"/></g>',
+  ].join('');
+}
 export function renderFrameSvg(
   design: FrameDesign,
   photos: readonly (FramePhoto | null)[],
@@ -311,10 +486,16 @@ export function renderFrameSvg(
   const { w, h, scale, dx, dy } = sheet(design);
   const width = outputPpi ? Math.round((w / 25.4) * outputPpi) : w + 'mm';
   const height = outputPpi ? Math.round((h / 25.4) * outputPpi) : h + 'mm';
-  const bg = { love: '#F8C9D8', story: '#F8E1E4', moments: '#f7f2e7', custom: '#ffffff' }[
-    design.template
-  ];
-  const layouts = { love, story, moments };
+  const bg = {
+    love: '#F8C9D8',
+    story: '#F8E1E4',
+    moments: '#f7f2e7',
+    anniversary: '#203344',
+    baptism: '#F3F0E6',
+    birthday: '#FFF1CF',
+    custom: '#ffffff',
+  }[design.template];
+  const layouts = { love, story, moments, anniversary, baptism, birthday };
   const content =
     design.template === 'custom'
       ? image(

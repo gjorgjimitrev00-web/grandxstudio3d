@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {
   effectiveFramePpi,
+  FRAME_PHOTO_COUNTS,
   FRAME_SIZES,
   frameDesignSchema,
   framePaperDimensions,
@@ -100,4 +101,117 @@ test('invalid, animated, missing, and insufficient-resolution uploads cannot pro
   for (const rejected of [Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), apng, tiny])
     await assert.rejects(renderFrameArtwork(basic, [rejected]), FrameArtworkError);
   await assert.rejects(renderFrameArtwork(basic, []), FrameArtworkError);
+});
+
+const occasionProofs = [
+  {
+    template: 'anniversary',
+    count: 2,
+    mk: 'Годишнина',
+    en: 'Anniversary',
+    centers: [
+      [84, 178],
+      [214, 194],
+    ],
+  },
+  {
+    template: 'baptism',
+    count: 1,
+    mk: 'Свето крштение',
+    en: 'Holy Baptism',
+    centers: [[148, 182]],
+  },
+  {
+    template: 'birthday',
+    count: 1,
+    mk: 'Среќен роденден!',
+    en: 'Happy birthday!',
+    centers: [[148, 182]],
+  },
+] as const;
+
+test('every Macedonian letter has a visible outline in names, dates and dedications', () => {
+  const alphabet = 'АБВГДЃЕЖЗЅИЈКЛЉМНЊОПРСТЌУФХЦЧЏШ';
+  for (const value of [alphabet, alphabet.toLowerCase()]) {
+    for (const field of ['names', 'date', 'caption'] as const) {
+      const design: FrameDesign = { ...basic, template: 'baptism', [field]: value };
+      assert.ok(frameDesignSchema.safeParse(design).success);
+      const svg = renderFrameSvg(design, []);
+      const group = svg.match(new RegExp(`<g aria-label="${value}"[^>]*>(.*?)</g>`));
+      assert.ok(group, `Missing ${field} group`);
+      assert.equal(
+        group[1].split('<path ').length - 1,
+        [...value].length,
+        `Missing outline in ${field}`,
+      );
+    }
+  }
+});
+
+test('occasion prints use the chosen language and validate the number and resolution of real photo slots', () => {
+  for (const { template, count, mk, en } of occasionProofs) {
+    const design: FrameDesign = { ...basic, template, crops: Array(count).fill(center) };
+    const photos = Array(count).fill({ src: '/photo', width: 2000, height: 1800 });
+    assert.equal(FRAME_PHOTO_COUNTS[template], count);
+    assert.ok(frameDesignSchema.safeParse(design).success);
+    assert.equal(frameDesignSchema.safeParse({ ...design, crops: [] }).success, false);
+    assert.equal(frameDesignSchema.safeParse({ ...design, locale: 'other' }).success, false);
+    assert.ok(renderFrameSvg(design, photos).includes(`aria-label="${mk}"`));
+    assert.ok(renderFrameSvg({ ...design, locale: 'en' }, photos).includes(`aria-label="${en}"`));
+    assert.equal(renderFrameSvg(design, photos).split('<image ').length - 1, count);
+    for (const size of Object.keys(FRAME_SIZES) as (keyof typeof FRAME_SIZES)[]) {
+      const centered = effectiveFramePpi({ ...design, size }, photos);
+      const zoomed = effectiveFramePpi(
+        { ...design, size, crops: Array(count).fill({ ...center, zoom: 2 }) },
+        photos,
+      );
+      assert.equal(centered.length, count);
+      assert.ok(centered.every((ppi, i) => ppi > 0 && Math.abs(ppi / 2 - zoomed[i]) < 1));
+    }
+  }
+});
+
+test('exported occasion pages contain each original photo in its intended aperture, with shaped corners intact', async () => {
+  const solid = (color: string) =>
+    sharp({ create: { width: 1200, height: 1200, channels: 3, background: color } })
+      .png()
+      .toBuffer();
+  const photos = await Promise.all([solid('#FA0909'), solid('#0C0CFA')]);
+  // Positions are in the shared 297 × 420 layout. 4 × 6 adds a vertical paper margin.
+  const pagePixel = (x: number, y: number) => ({
+    left: Math.round((x * 1200) / 297),
+    top: Math.round((1800 - (420 * 1200) / 297) / 2 + (y * 1200) / 297),
+    width: 1,
+    height: 1,
+  });
+  for (const { template, count, centers } of occasionProofs) {
+    const design: FrameDesign = {
+      ...basic,
+      template,
+      locale: 'mk',
+      names: 'Ѓорѓи',
+      caption: 'За спомен.',
+      crops: Array(count).fill(center),
+    };
+    const { pdf, preview, effectivePpi } = await renderFrameArtwork(design, photos.slice(0, count));
+    assert.ok(effectivePpi.every((ppi) => ppi >= 150));
+    const jpeg = extractJpeg(pdf);
+    const metadata = await sharp(jpeg).metadata();
+    assert.equal(metadata.width, 1200);
+    assert.equal(metadata.height, 1800);
+    assert.equal((await sharp(preview).metadata()).height, 840);
+    for (const [index, [x, y]] of centers.entries()) {
+      const rgb = await sharp(jpeg).extract(pagePixel(x, y)).raw().toBuffer();
+      assert.ok(index === 0 ? rgb[0] > 190 && rgb[2] < 50 : rgb[2] > 190 && rgb[0] < 50);
+    }
+    if (template !== 'anniversary') {
+      const [x, y] = template === 'baptism' ? [69, 97] : [51, 107];
+      const rgb = await sharp(jpeg).extract(pagePixel(x, y)).raw().toBuffer();
+      assert.ok(rgb[1] > 175 && rgb[2] > 135, 'The photograph must be clipped away at this corner');
+    }
+    await assert.rejects(
+      renderFrameArtwork(design, photos.slice(0, count - 1)),
+      /Upload every image/,
+    );
+  }
 });

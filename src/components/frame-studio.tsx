@@ -1,9 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { FrameDraftPanel } from './frame-draft-panel';
+import type { FrameDraftState } from '@/lib/frame-draft';
 import {
   ArrowLeft,
   ArrowRight,
+  Bookmark,
   Check,
   CheckCircle2,
   Expand,
@@ -29,27 +33,32 @@ import {
   type FramePhoto,
 } from '@/lib/frame-artwork';
 import { frameUnitPrice, type FramePrices } from '@/lib/frame-price-rules';
-import { frameStudioCopy } from '@/lib/frame-studio-copy';
+import {
+  frameSamplePhoto,
+  frameStudioCopy,
+  frameTemplatePresentation,
+} from '@/lib/frame-studio-copy';
 import { money } from '@/lib/utils';
 
 type Photo = FramePhoto & { file: File; token: string };
 type Crop = FrameDesign['crops'][number];
 type Template = FrameDesign['template'];
-const templates: Template[] = ['love', 'story', 'moments', 'custom'];
+const templates: Template[] = [
+  'love',
+  'story',
+  'moments',
+  'anniversary',
+  'baptism',
+  'birthday',
+  'custom',
+];
 const center = (): Crop => ({ zoom: 1, panX: 0.5, panY: 0.5 });
 const emptyCrops = (template: Template) =>
   Array.from({ length: FRAME_PHOTO_COUNTS[template] }, center);
 const sizeLabel = (size: FrameDesign['size']) =>
   (({ '4x6': '4 × 6″', '5x7': '5 × 7″', '8x10': '8 × 10″' }) as Record<string, string>)[size] ||
   size;
-const samplePhoto = (template: Template, index: number): FramePhoto => ({
-  width: 640,
-  height: 427,
-  src:
-    template === 'story'
-      ? '/images/frames/story-sample.webp'
-      : '/images/frames/love-sample-' + (index + 1) + '.webp',
-});
+const emptyCustomer = () => ({ name: '', phone: '', email: '', notes: '', quantity: '1' });
 
 async function loadPhoto(file: File): Promise<Photo> {
   if (
@@ -75,6 +84,9 @@ async function loadPhoto(file: File): Promise<Photo> {
 
 export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: FramePrices }) {
   const t = frameStudioCopy[locale];
+  const router = useRouter();
+  const [artworkLocale, setArtworkLocale] = useState(locale);
+  const [draftBusy, setDraftBusy] = useState(false);
   const [template, setTemplate] = useState<Template>('love');
   const [size, setSize] = useState<FrameDesign['size']>('A4');
   const [paper, setPaper] = useState<'matte' | 'glossy'>('matte');
@@ -86,6 +98,9 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
     love: emptyCrops('love'),
     story: emptyCrops('story'),
     moments: emptyCrops('moments'),
+    anniversary: emptyCrops('anniversary'),
+    baptism: emptyCrops('baptism'),
+    birthday: emptyCrops('birthday'),
     custom: emptyCrops('custom'),
   }));
   const [selected, setSelected] = useState(0);
@@ -93,13 +108,7 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
   const [date, setDate] = useState('');
   const [caption, setCaption] = useState('');
   const [details, setDetails] = useState(false);
-  const [customer, setCustomer] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    notes: '',
-    quantity: '1',
-  });
+  const [customer, setCustomer] = useState(emptyCustomer);
   const [reading, setReading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -113,6 +122,10 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
   const retry = useRef<{ fingerprint: string; key: string } | null>(null);
   const custom = template === 'custom';
   const count = FRAME_PHOTO_COUNTS[template];
+  const presentation = useMemo(
+    () => frameTemplatePresentation(locale, template),
+    [locale, template],
+  );
   const currentPhotos = useMemo(
     () => (custom ? photos.slice(4) : photos.slice(0, count)),
     [custom, photos, count],
@@ -132,6 +145,7 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
   const design = useMemo<FrameDesign>(
     () => ({
       template,
+      locale: artworkLocale,
       size,
       fit: custom ? fit : 'cover',
       orientation: custom ? orientation : 'portrait',
@@ -140,23 +154,23 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
       date: custom ? '' : date.trim(),
       caption: custom ? '' : caption.trim(),
     }),
-    [template, size, custom, fit, orientation, crops, names, date, caption],
+    [template, artworkLocale, size, custom, fit, orientation, crops, names, date, caption],
   );
   const dimensions = framePaperDimensions(design);
   const artwork = useMemo(() => {
     const shown = demo
       ? {
           ...design,
-          names: design.names || t.namesHint,
-          date: design.date || t.dateHint,
-          caption: design.caption || t.captionHint,
+          names: design.names || presentation.names,
+          date: design.date || presentation.date,
+          caption: design.caption || presentation.caption,
         }
       : design;
     try {
       return {
         svg: renderFrameSvg(
           shown,
-          demo ? currentPhotos.map((_, i) => samplePhoto(template, i)) : currentPhotos,
+          demo ? currentPhotos.map((_, i) => frameSamplePhoto(template, i)) : currentPhotos,
         ),
         ppi: effectiveFramePpi(design, currentPhotos),
         error: frameDesignSchema.safeParse(design).success ? '' : t.textError,
@@ -164,7 +178,7 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
     } catch {
       return { svg: '', ppi: [], error: t.textError };
     }
-  }, [design, demo, template, currentPhotos, t]);
+  }, [design, demo, template, currentPhotos, t, presentation]);
 
   useEffect(() => {
     const allocated = urls.current;
@@ -182,8 +196,87 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
       }
   }, [photos]);
 
+  const draftState: FrameDraftState = useMemo(
+    () => ({
+      template,
+      size,
+      locale: artworkLocale,
+      paper,
+      fit,
+      orientation,
+      crops,
+      selected,
+      names,
+      date,
+      caption,
+      files: photos.map((p) => p?.file ?? null),
+    }),
+    [
+      template,
+      size,
+      artworkLocale,
+      paper,
+      fit,
+      orientation,
+      crops,
+      selected,
+      names,
+      date,
+      caption,
+      photos,
+    ],
+  );
+  const hasEdits = Boolean(
+    names ||
+    date ||
+    caption ||
+    photos.some(Boolean) ||
+    details ||
+    selected ||
+    template !== 'love' ||
+    size !== 'A4' ||
+    paper !== 'matte' ||
+    fit !== 'contain' ||
+    orientation !== 'portrait',
+  );
+
+  async function restoreDraft(draft: FrameDraftState) {
+    const decoded: (Photo | null)[] = [];
+    try {
+      for (const file of draft.files) decoded.push(file ? await loadPhoto(file) : null);
+    } catch (error) {
+      decoded.forEach((p) => {
+        if (p) URL.revokeObjectURL(p.src);
+      });
+      throw error;
+    }
+    decoded.forEach((p) => {
+      if (p) urls.current.add(p.src);
+    });
+    setPhotos(decoded);
+    setTemplate(draft.template);
+    setArtworkLocale(draft.locale);
+    setSize(draft.size);
+    setPaper(draft.paper);
+    setFit(draft.fit);
+    setOrientation(draft.orientation);
+    setSelected(draft.selected);
+    setCrops(draft.crops);
+    setNames(draft.names);
+    setDate(draft.date);
+    setCaption(draft.caption);
+    setDetails(false);
+    setApproved(false);
+    setCustomer(emptyCustomer());
+    setError('');
+    setPriceUpdates({});
+    retry.current = null;
+    router.refresh();
+  }
+
   function selectTemplate(value: Template) {
     setTemplate(value);
+    if (value !== template) setArtworkLocale(locale);
     setSelected(0);
     setError('');
   }
@@ -301,7 +394,7 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
     }
   }
 
-  const printTitle = custom ? t.templates[3] : t.templates[templates.indexOf(template)];
+  const printTitle = presentation.title;
   const orderError = error ? (
     <p className="frame-error" role="alert">
       {error}
@@ -354,7 +447,7 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
       </section>
     );
 
-  return (
+  const workspace = (
     <div className="frame-workspace">
       <aside className="frame-preview" id="frame-preview" aria-label={t.preview}>
         <div className="frame-scene">
@@ -397,31 +490,39 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
       </dialog>
       <section className="frame-editor" ref={editor}>
         {!details ? (
-          <fieldset className="frame-edit-controls" disabled={reading}>
+          <fieldset className="frame-edit-controls" disabled={reading || draftBusy}>
             <div className="frame-section first">
               <h2>{t.template}</h2>
               <div className="frame-templates">
-                {templates.map((id, i) => (
-                  <button
-                    type="button"
-                    key={id}
-                    aria-pressed={template === id}
-                    className="frame-template"
-                    onClick={() => selectTemplate(id)}
-                  >
-                    <span className={'frame-mini ' + id} aria-hidden="true">
-                      {id === 'custom' ? (
-                        <FileImage size={18} />
-                      ) : (
-                        Array.from({ length: FRAME_PHOTO_COUNTS[id] }, (_, j) => <i key={j} />)
-                      )}
-                    </span>
-                    <span>
-                      <strong>{t.templates[i]}</strong>
-                      <small>{t.counts[i]}</small>
-                    </span>
-                  </button>
-                ))}
+                {templates.map((id) => {
+                  const option = frameTemplatePresentation(locale, id);
+                  return (
+                    <button
+                      type="button"
+                      key={id}
+                      aria-pressed={template === id}
+                      className="frame-template"
+                      onClick={() => selectTemplate(id)}
+                    >
+                      <span className={'frame-mini ' + id} aria-hidden="true">
+                        {id === 'custom' ? (
+                          <FileImage size={18} />
+                        ) : (
+                          <img
+                            alt=""
+                            src={'/images/frames/previews/' + id + '-' + locale + '.webp'}
+                            width={40}
+                            height={57}
+                          />
+                        )}
+                      </span>
+                      <span>
+                        <strong>{option.title}</strong>
+                        <small>{option.count}</small>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="frame-section">
@@ -568,7 +669,7 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
                       value={names}
                       onChange={(e) => setNames(e.target.value)}
                       maxLength={60}
-                      placeholder={t.namesHint}
+                      placeholder={presentation.names}
                     />
                   </label>
                   <label>
@@ -577,7 +678,7 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
                       maxLength={32}
-                      placeholder={t.dateHint}
+                      placeholder={presentation.date}
                     />
                   </label>
                   <label className="full">
@@ -586,7 +687,7 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
                       value={caption}
                       onChange={(e) => setCaption(e.target.value)}
                       maxLength={100}
-                      placeholder={t.captionHint}
+                      placeholder={presentation.caption}
                     />
                   </label>
                 </div>
@@ -649,12 +750,16 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
                   <Images size={17} />
                   {t.view}
                 </button>
+                <button type="submit" form="frame-draft-save" className="frame-view">
+                  <Bookmark size={17} aria-hidden="true" />
+                  {locale === 'mk' ? 'Зачувај ја рамката' : 'Save this frame'}
+                </button>
               </div>
             </div>
           </fieldset>
         ) : (
           <form className="frame-order" onSubmit={submit}>
-            <fieldset disabled={sending} className="frame-edit-controls">
+            <fieldset disabled={sending || draftBusy} className="frame-edit-controls">
               <button
                 type="button"
                 className="frame-back"
@@ -754,5 +859,19 @@ export function FrameStudio({ locale, prices }: { locale: 'mk' | 'en'; prices: F
         )}
       </section>
     </div>
+  );
+
+  return (
+    <>
+      <FrameDraftPanel
+        locale={locale}
+        state={draftState}
+        hasEdits={hasEdits}
+        disabled={reading || sending}
+        onBusyChange={setDraftBusy}
+        onRestore={restoreDraft}
+      />
+      {workspace}
+    </>
   );
 }

@@ -1,8 +1,19 @@
+import { FRAME_PHOTO_COUNTS, type FramePhoto, type FrameTemplate } from './frame-artwork';
+
 export const frameStudioCopy = {
   mk: {
     template: 'Избери дизајн',
-    templates: ['Љубов во секоја рамка', 'Нашата приказна', 'Наши моменти', 'Твој дизајн'],
-    counts: ['Четири фотографии', 'Една фотографија', 'Три фотографии', 'Готов постер'],
+    templates: {
+      love: 'Љубов во секоја рамка',
+      story: 'Нашата приказна',
+      moments: 'Наши моменти',
+      anniversary: 'Нашата годишнина',
+      baptism: 'Спомен од крштевката',
+      birthday: 'Роденденски балони',
+      custom: 'Твој дизајн',
+    },
+    counts: ['Една фотографија', 'Две фотографии', 'Три фотографии', 'Четири фотографии'],
+    finishedArtwork: 'Готов постер',
     photos: 'Твоите фотографии',
     artwork: 'Твојот дизајн',
     photo: 'Фотографија',
@@ -37,7 +48,7 @@ export const frameStudioCopy = {
     preview: 'Преглед',
     view: 'Види преглед',
     edit: 'Продолжи со уредување',
-    sample: 'Пример со фотографии од студиото',
+    sample: 'Пример со илустративни фотографии',
     yours: 'Твојот отпечаток',
     frameHint: 'Рамката во прегледот е илустративна.',
     empty: 'Прикачи дизајн за да го видиш тука.',
@@ -79,8 +90,17 @@ export const frameStudioCopy = {
   },
   en: {
     template: 'Choose a design',
-    templates: ['Love, in every frame', 'The story of us', 'Our moments', 'Your design'],
-    counts: ['Four photos', 'One photo', 'Three photos', 'Finished artwork'],
+    templates: {
+      love: 'Love, in every frame',
+      story: 'The story of us',
+      moments: 'Our moments',
+      anniversary: 'Our anniversary',
+      baptism: 'Baptism keepsake',
+      birthday: 'Birthday balloons',
+      custom: 'Your design',
+    },
+    counts: ['One photo', 'Two photos', 'Three photos', 'Four photos'],
+    finishedArtwork: 'Finished artwork',
     photos: 'Your photos',
     artwork: 'Your artwork',
     photo: 'Photo',
@@ -115,7 +135,7 @@ export const frameStudioCopy = {
     preview: 'Preview',
     view: 'View preview',
     edit: 'Continue editing',
-    sample: 'Example with studio photos',
+    sample: 'Preview with example photos',
     yours: 'Your print',
     frameHint: 'Frame shown for illustration.',
     empty: 'Upload your design to see it here.',
@@ -155,3 +175,70 @@ export const frameStudioCopy = {
     changed: 'The price has changed. Review the updated amount and confirm again.',
   },
 };
+
+const occasionExamples = {
+  mk: {
+    anniversary: {
+      names: 'Елена и Давид',
+      date: 'Десет години заедно',
+      caption: 'Уште многу утра со тебе.',
+    },
+    baptism: {
+      names: 'Софија',
+      date: '7 јуни 2026',
+      caption: 'Нека љубовта те води.',
+    },
+    birthday: {
+      names: 'Лука',
+      date: 'Мојот прв роденден',
+      caption: 'Една свеќичка и илјада желби.',
+    },
+  },
+  en: {
+    anniversary: {
+      names: 'Ella & David',
+      date: 'Ten years together',
+      caption: 'To many more mornings with you.',
+    },
+    baptism: {
+      names: 'Sofia',
+      date: '7 June 2026',
+      caption: 'May love guide you.',
+    },
+    birthday: {
+      names: 'Luca',
+      date: 'My first birthday',
+      caption: 'One candle and a thousand wishes.',
+    },
+  },
+};
+
+export function frameTemplatePresentation(
+  locale: keyof typeof frameStudioCopy,
+  template: FrameTemplate,
+) {
+  const copy = frameStudioCopy[locale];
+  const example =
+    template === 'anniversary' || template === 'baptism' || template === 'birthday'
+      ? occasionExamples[locale][template]
+      : { names: copy.namesHint, date: copy.dateHint, caption: copy.captionHint };
+  return {
+    title: copy.templates[template],
+    count:
+      template === 'custom' ? copy.finishedArtwork : copy.counts[FRAME_PHOTO_COUNTS[template] - 1],
+    ...example,
+  };
+}
+
+export function frameSamplePhoto(template: FrameTemplate, index: number): FramePhoto | null {
+  if (template === 'custom') return null;
+  if (template === 'baptism')
+    return { src: '/images/frames/baptism-sample.webp', width: 688, height: 772 };
+  if (template === 'birthday')
+    return { src: '/images/frames/birthday-sample.webp', width: 720, height: 611 };
+  const source =
+    template === 'story'
+      ? 'story-sample'
+      : 'love-sample-' + (template === 'anniversary' ? [1, 3][index] : index + 1);
+  return { src: '/images/frames/' + source + '.webp', width: 640, height: 427 };
+}

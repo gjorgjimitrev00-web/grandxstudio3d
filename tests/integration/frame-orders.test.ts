@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { db } from '../../src/lib/db';
+import type { FrameDesign } from '../../src/lib/frame-artwork';
 
 const database = new URL(process.env.DATABASE_URL || 'http://invalid');
 const base = new URL(process.env.TEST_BASE_URL || 'http://invalid');
@@ -73,13 +74,22 @@ after(async () => {
 function submit({
   idempotencyKey = key,
   expectedPrice = 810,
-  file = photo,
+  files = [photo],
+  design = {
+    size: '4x6',
+    template: 'custom',
+    names: '',
+    date: '',
+    caption: '',
+    crops: [{ zoom: 1, panX: 0.5, panY: 0.5 }],
+  },
   name = 'Frame tester',
   paper = 'matte',
 }: {
   idempotencyKey?: string;
   expectedPrice?: number | null;
-  file?: Buffer;
+  files?: Buffer[];
+  design?: FrameDesign;
   name?: string;
   paper?: string;
 } = {}) {
@@ -94,29 +104,24 @@ function submit({
     paper,
     consent: 'true',
     notes: 'Endpoint check',
-    design: JSON.stringify({
-      size: '4x6',
-      template: 'custom',
-      names: '',
-      date: '',
-      caption: '',
-      crops: [{ zoom: 1, panX: 0.5, panY: 0.5 }],
-    }),
+    design: JSON.stringify(design),
   }))
     form.set(key, value);
-  form.append(
-    'photos',
-    new Blob([new Uint8Array(file)], { type: 'image/jpeg' }),
-    'private-photo.jpg',
-  );
+  for (const [i, file] of files.entries()) {
+    form.append(
+      'photos',
+      new Blob([new Uint8Array(file)], { type: 'image/jpeg' }),
+      `private-photo-${i}.jpg`,
+    );
+  }
   return fetch(new URL('/api/frame-orders', base), {
     method: 'POST',
     headers: { Origin: base.origin },
     body: form,
   });
 }
-const asset = (name: string, cookie = '') =>
-  fetch(new URL('/api/admin/frame-orders/' + orderId + '/' + name, base), {
+const asset = (name: string, cookie = '', id = orderId) =>
+  fetch(new URL('/api/admin/frame-orders/' + id + '/' + name, base), {
     headers: { Cookie: cookie },
   });
 async function body(response: Response, status: number) {
@@ -197,7 +202,7 @@ test('invalid image data leaves neither a reservation nor an order', async () =>
     await submit({
       idempotencyKey: invalid,
       expectedPrice: 950,
-      file: Buffer.from('invalid photo'),
+      files: [Buffer.from('invalid photo')],
     }),
     422,
   );
@@ -218,4 +223,44 @@ test('admin updates status with a checked previous state', async () => {
     (await db.frameOrder.findUniqueOrThrow({ where: { id: orderId } })).status,
     'PRINTING',
   );
+});
+
+test('a personalized anniversary order keeps its two photo crops, language and private printable PDF', async () => {
+  const design: FrameDesign = {
+    template: 'anniversary',
+    size: '4x6',
+    locale: 'en',
+    names: 'Ема и Лука',
+    date: '12.10.2026',
+    caption: 'Од првиот поглед до денес.',
+    crops: [
+      { zoom: 1.2, panX: 0.3, panY: 0.8 },
+      { zoom: 1, panX: 0.7, panY: 0.1 },
+    ],
+  };
+  const secondPhoto = await sharp({
+    create: { width: 1000, height: 1500, channels: 3, background: '#287A40' },
+  })
+    .jpeg()
+    .toBuffer();
+  const receipt = await body(
+    await submit({
+      idempotencyKey: randomUUID(),
+      design,
+      files: [photo, secondPhoto],
+      expectedPrice: null,
+      paper: 'glossy',
+    }),
+    201,
+  );
+  const saved = await db.frameOrder.findUniqueOrThrow({ where: { id: receipt.id } });
+  assert.deepEqual(saved.design, design);
+  assert.equal((saved.effectivePpi as number[]).length, 2);
+  await body(await asset('print', '', saved.id), 401);
+  const download = await asset('print', adminCookie, saved.id);
+  assert.equal(download.status, 200);
+  assert.match(download.headers.get('content-type') || '', /application\/pdf/);
+  const bytes = Buffer.from(await download.arrayBuffer());
+  assert.equal(bytes.length, saved.pdfBytes);
+  assert.match(bytes.toString('latin1'), /\/MediaBox \[0 0 288\.0+ 432\.0+\]/);
 });

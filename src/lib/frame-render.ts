@@ -6,6 +6,7 @@ import {
   FRAME_FILES_MAX,
   FRAME_MIN_PPI,
   FRAME_PHOTO_COUNTS,
+  FRAME_PHOTO_MATS,
   FRAME_TARGET_PPI,
   frameDesignSchema,
   framePaperDimensions,
@@ -58,9 +59,7 @@ async function dimensions(file: Buffer) {
 async function normalizedPhoto(file: Buffer, photo: FramePhoto, ppi: number, design: FrameDesign) {
   // Only the printable resolution needs to be embedded in the compositing scene.
   const scale = Math.min(1, 360 / ppi);
-  const background = { love: '#FFF8ED', story: '#FFF8F0', moments: '#2f3330', custom: '#ffffff' }[
-    design.template
-  ];
+  const background = FRAME_PHOTO_MATS[design.template];
   const jpeg = await sharp(file, options)
     .autoOrient()
     .resize(

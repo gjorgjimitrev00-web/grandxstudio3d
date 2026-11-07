@@ -3,14 +3,15 @@ import { getLocale } from '@/lib/i18n';
 import { getFramePrices } from '@/lib/frame-pricing';
 import { FrameStudio } from '@/components/frame-studio';
 import './frames.css';
+import './drafts.css';
 
 export async function generateMetadata() {
   const mk = (await getLocale()) === 'mk';
   return {
     title: mk ? 'Персонализирани рамки' : 'Custom photo frames',
     description: mk
-      ? 'Направи љубовен постер од твоите фотографии или прикачи готов дизајн и нарачај печатење од GrandXStudio.'
-      : 'Create a love poster with your photos or upload a finished design and order a framed print from GrandXStudio.',
+      ? 'Персонализирај постер за годишнина, крштевка или детски роденден со свои фотографии. Избери формат и хартија или прикачи готов дизајн за печатење.'
+      : 'Personalise an anniversary, baptism or birthday poster with your photos. Choose a print size and paper, or upload finished artwork for framing.',
     alternates: { canonical: '/custom-frames' },
   };
 }
@@ -32,8 +33,8 @@ export default async function CustomFramesPage() {
         </h1>
         <p>
           {mk
-            ? 'Избери постер за твоите фотографии или прикачи свој дизајн. Намести го секој детал и види како ќе изгледа отпечатокот.'
-            : 'Choose a poster for your photos or upload your own design. Arrange the details and see how your print will look.'}
+            ? 'Избери постер за годишнина, крштевка или роденден и додај свои фотографии. Можеш и да прикачиш готов дизајн за печатење.'
+            : 'Choose an anniversary, baptism or birthday poster and add your photos. You can also upload your own finished design for printing.'}
         </p>
       </header>
       <FrameStudio locale={locale} prices={prices} />

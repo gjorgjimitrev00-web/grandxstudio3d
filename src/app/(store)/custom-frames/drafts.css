@@ -1,0 +1,82 @@
+.frame-draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  margin: 0 0 24px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #faf7f0;
+}
+.frame-draft > div:first-child {
+  flex: 1 1 310px;
+}
+.frame-draft strong {
+  font-size: 15px;
+}
+.frame-draft p,
+.frame-draft time {
+  color: var(--muted);
+  font-size: 13px;
+}
+.frame-draft p {
+  margin: 4px 0 0;
+}
+.frame-draft-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.frame-draft-actions button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.frame-draft-actions button:hover:not(:disabled) {
+  border-color: currentColor;
+}
+.frame-draft-actions button:disabled {
+  opacity: 0.55;
+}
+.frame-draft-actions .draft-delete {
+  width: 42px;
+}
+.frame-draft .draft-feedback {
+  width: 100%;
+  margin: 0;
+  font-weight: 550;
+}
+.frame-draft .frame-error {
+  color: #943827;
+}
+.draft-confirm {
+  width: min(400px, calc(100% - 32px));
+  margin: auto;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.draft-confirm::backdrop {
+  background: #251b1380;
+}
+.frame-draft .draft-confirm p {
+  margin: 0 0 18px;
+  font-size: 16px;
+  color: var(--ink);
+}
+.draft-confirm .frame-draft-actions button:last-child {
+  background: var(--ink);
+  color: #fff;
+}

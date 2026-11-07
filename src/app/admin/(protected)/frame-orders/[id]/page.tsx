@@ -6,14 +6,8 @@ import { FrameStatusForm } from '@/components/frame-admin-forms';
 import { requireAdminPage } from '@/lib/admin-access';
 import { db } from '@/lib/db';
 import { framePaperDimensions, frameDesignSchema } from '@/lib/frame-artwork';
+import { frameTemplatePresentation } from '@/lib/frame-studio-copy';
 import { money } from '@/lib/utils';
-
-const templateLabels = {
-  love: 'Love, in Every Frame',
-  story: 'The Story of Us',
-  moments: 'Our Moments',
-  custom: 'Customer artwork',
-};
 
 export default async function FrameOrderDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireAdminPage();
@@ -54,8 +48,10 @@ export default async function FrameOrderDetail({ params }: { params: Promise<{ i
           />
           {design.success && size && (
             <p className="small">
-              {templateLabels[design.data.template]} · {design.data.size} · {size.widthMm} ×{' '}
-              {size.heightMm} mm
+              {design.data.template === 'custom'
+                ? 'Customer artwork'
+                : frameTemplatePresentation('en', design.data.template).title}{' '}
+              · {design.data.size} · {size.widthMm} × {size.heightMm} mm
             </p>
           )}
           {ppis.length > 0 && (
